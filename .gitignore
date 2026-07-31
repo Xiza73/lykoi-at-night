@@ -27,3 +27,6 @@ Thumbs.db
 # Editor
 .idea/
 *.swp
+
+# Design source (Claude Design exports — local working assets)
+design/

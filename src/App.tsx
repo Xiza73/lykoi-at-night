@@ -1,11 +1,14 @@
-import "./App.css";
+import { PencilFilters } from "./presentation/theme/PencilFilters";
+import { GrainOverlay } from "./presentation/theme/GrainOverlay";
+import { LandingPage } from "./presentation/LandingPage";
 
 function App() {
   return (
-    <main className="app">
-      <h1>🐾 Lykoi at Night</h1>
-      <p>Social deduction, feline edition. Scaffold ready.</p>
-    </main>
+    <>
+      <PencilFilters />
+      <GrainOverlay />
+      <LandingPage />
+    </>
   );
 }
 

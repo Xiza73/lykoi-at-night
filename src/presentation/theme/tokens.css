@@ -1,0 +1,113 @@
+/*
+ * Design tokens for the "Lykoi at Night" presentation layer.
+ * Colors, fonts and keyframes are lifted from the original design file
+ * (design/Lykoi at Night.dc.html) so the React UI stays visually faithful.
+ */
+
+:root {
+  /* Backgrounds & surfaces */
+  --lyk-bg: #0b0c0d;
+  --lyk-surface: #101215;
+  --lyk-surface-2: #0e1013;
+  --lyk-surface-3: #16191d;
+
+  /* Ink / text */
+  --lyk-ink: #e9e3d6;
+  --lyk-ink-strong: #efe9dc;
+  --lyk-muted: #a8a196;
+  --lyk-muted-2: #8b857a;
+  --lyk-faint: #7d786e;
+
+  /* Lines */
+  --lyk-line: #23252a;
+  --lyk-line-2: #1a1c20;
+
+  /* Accents */
+  --lyk-gold: #d9a44c;
+  --lyk-gold-bright: #f0c47c;
+  --lyk-blood: #9c4130;
+  --lyk-blood-bright: #c0563f;
+  --lyk-night: #38506b;
+  --lyk-night-bright: #7fa8d8;
+
+  /* Fonts */
+  --lyk-serif: "IM Fell English", serif;
+  --lyk-sans: "Jost", sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--lyk-bg);
+}
+
+.lyk-root *,
+.lyk-root *::before,
+.lyk-root *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lyk-root a {
+  color: var(--lyk-gold);
+  text-decoration: none;
+}
+
+.lyk-root a:hover {
+  color: var(--lyk-gold-bright);
+}
+
+.lyk-root ::selection {
+  background: var(--lyk-blood);
+  color: #f4efe4;
+}
+
+/* Keyframes reproduced from the design */
+@keyframes lyk-flicker {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  43% {
+    opacity: 0.55;
+  }
+  47% {
+    opacity: 0.9;
+  }
+  62% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes lyk-breathe {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.035);
+  }
+}
+
+@keyframes lyk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lyk-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}
