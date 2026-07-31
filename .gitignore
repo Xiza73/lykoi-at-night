@@ -1,0 +1,29 @@
+# Claude Code — archivos personales (no compartir)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
