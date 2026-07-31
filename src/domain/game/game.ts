@@ -9,11 +9,15 @@ import {
 } from "./player";
 import { isWitch } from "./roles";
 import type { Shuffle } from "./shuffle";
+import { dealTryals, type TryalDeck } from "./tryal";
 
 export type GameStatus = "in_progress" | "ended";
 
 /** Which faction won, once the game has ended. */
 export type Outcome = "town" | "witches";
+
+/** Accusations required to send a player to trial (as in Salem 1692). */
+export const ACCUSATIONS_FOR_TRIAL = 7;
 
 /** Setup options for a new game. */
 export interface GameConfig {
@@ -27,28 +31,38 @@ export interface Game {
   readonly round: number;
   readonly status: GameStatus;
   readonly winner: Outcome | null;
+  readonly accusations: Readonly<Record<PlayerId, number>>;
+  readonly tryals: Readonly<Record<PlayerId, TryalDeck>>;
+  readonly onTrial: PlayerId | null;
 }
 
-/** Creates a new game: deals roles and starts on Day 1, undecided. */
+/** Creates a new game: deals roles and tryal cards, starts on Day 1. */
 export function createGame(
   seats: readonly Seat[],
   config: GameConfig,
   shuffle: Shuffle,
 ): Game {
   const players = dealRoles(seats, config.witchCount, shuffle);
+  const tryals = dealTryals(players, shuffle);
+  const accusations: Record<PlayerId, number> = {};
+  for (const player of players) {
+    accusations[player.id] = 0;
+  }
   return {
     players,
     phase: "day",
     round: 1,
     status: "in_progress",
     winner: null,
+    accusations,
+    tryals,
+    onTrial: null,
   };
 }
 
 /**
- * Advances the day/night clock. Once the game has ended this is a no-op and
- * returns the same snapshot. Day -> Night keeps the round number;
- * Night -> Day starts the next round.
+ * Advances the day/night clock. No-op once the game has ended. Day -> Night
+ * keeps the round number; Night -> Day starts the next round.
  */
 export function advancePhase(game: Game): Game {
   if (game.status === "ended") {
@@ -100,4 +114,58 @@ export function eliminatePlayer(game: Game, playerId: PlayerId): Game {
     player.id === playerId ? eliminate(player) : player,
   );
   return resolve({ ...game, players });
+}
+
+/**
+ * Places an accusation on a living player. Reaching ACCUSATIONS_FOR_TRIAL sends
+ * that player to trial and clears their accusation count. Ignored while a trial
+ * is already pending or the game has ended.
+ */
+export function accuse(game: Game, targetId: PlayerId): Game {
+  if (game.status === "ended" || game.onTrial !== null) {
+    return game;
+  }
+  const target = game.players.find((player) => player.id === targetId);
+  if (!target || !target.alive) {
+    return game;
+  }
+  const next = (game.accusations[targetId] ?? 0) + 1;
+  if (next >= ACCUSATIONS_FOR_TRIAL) {
+    return {
+      ...game,
+      accusations: { ...game.accusations, [targetId]: 0 },
+      onTrial: targetId,
+    };
+  }
+  return { ...game, accusations: { ...game.accusations, [targetId]: next } };
+}
+
+/**
+ * Reveals one of the accused player's tryal cards during a trial. The accused
+ * dies if the revealed card is a witch card, or if it was their last hidden
+ * card. Clears the trial and re-evaluates the win condition.
+ */
+export function revealTryal(game: Game, index: number): Game {
+  const accusedId = game.onTrial;
+  if (accusedId === null) {
+    return game;
+  }
+  const deck = game.tryals[accusedId];
+  if (index < 0 || index >= deck.cards.length || deck.revealed[index]) {
+    return game;
+  }
+  const revealed = deck.revealed.map((flag, i) => (i === index ? true : flag));
+  const card = deck.cards[index];
+  const dies = card === "witch" || revealed.every((flag) => flag);
+  const players = dies
+    ? game.players.map((player) =>
+        player.id === accusedId ? eliminate(player) : player,
+      )
+    : game.players;
+  return resolve({
+    ...game,
+    players,
+    tryals: { ...game.tryals, [accusedId]: { cards: deck.cards, revealed } },
+    onTrial: null,
+  });
 }
