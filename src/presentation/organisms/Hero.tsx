@@ -57,13 +57,11 @@ function CtaLink({
  * moon/pencil SVG. Copy and art are reproduced from the design.
  */
 export function Hero() {
-  // The primary CTA opens the game in a later slice; for now it scrolls to the
-  // rules so the button stays useful.
+  // The primary CTA jumps to the interactive game section.
   const handleOpenGame = (event: React.MouseEvent) => {
     event.preventDefault();
-    // TODO: link to game screen (next slice)
     document
-      .getElementById("reglas")
+      .getElementById("partida")
       ?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -211,7 +209,7 @@ export function Hero() {
             marginTop: "6px",
           }}
         >
-          <CtaLink href="#reglas" variant="solid" onClick={handleOpenGame}>
+          <CtaLink href="#partida" variant="solid" onClick={handleOpenGame}>
             Abrir la partida
           </CtaLink>
           <CtaLink href="#cartas" variant="ghost">

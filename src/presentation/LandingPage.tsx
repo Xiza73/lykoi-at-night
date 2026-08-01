@@ -1,12 +1,13 @@
 import "./theme/tokens.css";
 import { Hero } from "./organisms/Hero";
+import { PartidaSection } from "./organisms/PartidaSection";
 import { RolesSection } from "./organisms/RolesSection";
 import { RulesSection } from "./organisms/RulesSection";
 import { SiteFooter } from "./organisms/SiteFooter";
 
 /**
- * The presentational landing page: hero + roles (#cartas) + rules (#reglas) +
- * footer. Pure presentation — no game logic lives here.
+ * The presentational landing page: hero + interactive game (#partida) + roles
+ * (#cartas) + rules (#reglas) + footer. The game screen owns its own state.
  */
 export function LandingPage() {
   return (
@@ -21,6 +22,7 @@ export function LandingPage() {
       }}
     >
       <Hero />
+      <PartidaSection />
       <RolesSection />
       <RulesSection />
       <SiteFooter />
