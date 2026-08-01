@@ -16,7 +16,7 @@ Al ser invocado:
    - **TypeScript estricto**: sin `any`, contratos de dominio bien tipados.
    - **Componentes**: funcionales, container/presentational, atomic design.
    - **Tests**: lógica de dominio cubierta; tests de comportamiento, no de implementación.
-3. Corré `npm run test` y `npm run lint` si se tocó lógica.
+3. Corré `bun run test` y `bun run lint` si se tocó lógica.
 
 Reportá por severidad (bloqueante / importante / menor / nit) con archivo:línea
 y una recomendación concreta. Explicá SIEMPRE el porqué técnico. No apliques

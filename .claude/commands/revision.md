@@ -1,7 +1,7 @@
 ---
 description: Revisión de código del diff actual — correctitud, dominio del juego y convenciones
 argument-hint: "[ruta o descripción opcional del alcance]"
-allowed-tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(npm run test:*), Bash(npm run lint:*)
+allowed-tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(bun run test:*), Bash(bun run lint:*)
 ---
 
 Revisá los cambios pendientes en la rama actual.
@@ -17,5 +17,5 @@ Pasos:
    - Nombres e identificadores en inglés.
 3. Buscá bugs de correctitud, edge cases del dominio (roles, fases, victoria) y
    estado mal manejado.
-4. Corré `npm run lint` y `npm run test` si hay lógica tocada.
+4. Corré `bun run lint` y `bun run test` si hay lógica tocada.
 5. Reportá hallazgos ordenados por severidad. NO cambies código salvo que te lo pidan.

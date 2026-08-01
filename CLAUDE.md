@@ -36,8 +36,8 @@ un mismo código, empaquetado con **Tauri v2**.
 - **Frontend**: React + TypeScript, bundler **Vite**.
 - **Shell multiplataforma**: **Tauri v2** (core en Rust; WebView del sistema).
   Soporta desktop (macOS/Windows/Linux) y móvil (iOS/Android).
-- **Tooling / scripts**: Node.js.
-- **Testing**: **Vitest** (unit + componentes con React Testing Library).
+- **Gestor de paquetes y runner de scripts**: **Bun** (`bun install`, `bun run …`).
+- **Testing**: **Vitest** (unit + componentes con React Testing Library), ejecutado con `bun run test`.
 - **Lenguaje**: TypeScript en modo estricto para el frontend; Rust para el core Tauri.
 - **Estructura**: single-package (no monorepo). El frontend vive en la raíz;
   el core Tauri en `src-tauri/`.
@@ -48,14 +48,14 @@ un mismo código, empaquetado con **Tauri v2**.
 
 | Acción       | Comando                |
 | ------------ | ---------------------- |
-| Dev (web)    | `npm run dev`          |
-| Dev (Tauri)  | `npm run tauri dev`    |
-| Build (web)  | `npm run build`        |
-| Build (app)  | `npm run tauri build`  |
-| Tests        | `npm run test`         |
-| Tests (watch)| `npm run test:watch`   |
-| Lint         | `npm run lint`         |
-| Typecheck    | `npm run typecheck`    |
+| Dev (web)    | `bun run dev`          |
+| Dev (Tauri)  | `bun run tauri dev`    |
+| Build (web)  | `bun run build`        |
+| Build (app)  | `bun run tauri build`  |
+| Tests        | `bun run test`         |
+| Tests (watch)| `bun run test:watch`   |
+| Lint         | `bun run lint`         |
+| Typecheck    | `bun run typecheck`    |
 
 ## Convenciones de código
 

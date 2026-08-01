@@ -25,6 +25,6 @@ En `.claude/settings.json`:
 }
 ```
 
-Y un script `lint-staged.sh` en esta carpeta que corra `npm run lint`.
+Y un script `lint-staged.sh` en esta carpeta que corra `bun run lint`.
 
 > Ningún hook está activo por defecto. Es una carpeta de arranque, opcional.
