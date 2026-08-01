@@ -83,6 +83,41 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
   });
 
+  it("walks the night: witches take a victim who falls by dawn", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Enter the night from the day board.
+    await user.click(screen.getByRole("button", { name: /que caiga la noche/i }));
+
+    // Gate: hand the phone to the witches.
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+
+    // Pick: Dario is a villager (index 3). Select and seal.
+    await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+
+    // Ward: the Guardian passes without touching.
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /sella la noche/i }));
+
+    // Dawn: Dario did not survive the night.
+    expect(screen.getByText(/dario no volvió al callejón/i)).toBeInTheDocument();
+
+    // Back to the next day's board; Dario now renders as fallen.
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /señalar a dario \(caído\)/i }),
+    ).toBeInTheDocument();
+  });
+
   it("eliminates the accused when their witch card is revealed", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);

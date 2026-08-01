@@ -169,3 +169,47 @@ export function revealTryal(game: Game, index: number): Game {
     onTrial: null,
   });
 }
+
+/** The living player whose constable tryal card is still hidden, or null. */
+export function constableId(game: Game): PlayerId | null {
+  for (const player of game.players) {
+    if (!player.alive) {
+      continue;
+    }
+    const deck = game.tryals[player.id];
+    const index = deck.cards.indexOf("constable");
+    if (index >= 0 && !deck.revealed[index]) {
+      return player.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolves a night. The witches' victim dies unless the constable warded
+ * exactly that player (the constable cannot ward themselves). Then dawn breaks:
+ * the game advances to the next day, or ends if a faction has won. No-op unless
+ * it is night and the game is still in progress.
+ */
+export function resolveNight(
+  game: Game,
+  victimId: PlayerId,
+  wardedId: PlayerId | null,
+): Game {
+  if (game.phase !== "night" || game.status === "ended") {
+    return game;
+  }
+  const victim = game.players.find((player) => player.id === victimId);
+  if (!victim || !victim.alive) {
+    return game;
+  }
+  const guard = constableId(game);
+  const warded = guard !== null && wardedId === victimId && victimId !== guard;
+  const players = warded
+    ? game.players
+    : game.players.map((player) =>
+        player.id === victimId ? eliminate(player) : player,
+      );
+  const resolved = resolve({ ...game, players });
+  return resolved.status === "ended" ? resolved : advancePhase(resolved);
+}

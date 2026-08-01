@@ -3,6 +3,7 @@ import {
   accuse,
   advancePhase,
   createGame,
+  resolveNight,
   revealTryal,
   type Game,
 } from "../domain/game/game";
@@ -12,6 +13,7 @@ import { PhoneHeader } from "./components/PhoneHeader";
 import { LobbyView } from "./views/LobbyView";
 import { RevealView } from "./views/RevealView";
 import { PlayView } from "./views/PlayView";
+import { NightView, type NightStep } from "./views/NightView";
 import { TrialView } from "./views/TrialView";
 import { EndView } from "./views/EndView";
 
@@ -51,6 +53,11 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // the host dismisses it, because the domain clears `onTrial` on the reveal —
   // we still want to show the resolved outcome afterwards.
   const [trialId, setTrialId] = useState<string | null>(null);
+  // Night sub-flow state, owned by the container. The victim and ward are
+  // collected by the UI and handed to resolveNight — the only death path.
+  const [nightStep, setNightStep] = useState<NightStep>("gate");
+  const [victimId, setVictimId] = useState<string | null>(null);
+  const [wardedId, setWardedId] = useState<string | null>(null);
 
   const roundLabel = useMemo(() => {
     if (step === "lobby") {
@@ -115,7 +122,43 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const handleTrialContinue = () => setTrialId(null);
 
   const handleAdvancePhase = () => {
-    setGame((prev) => (prev ? advancePhase(prev) : prev));
+    setGame((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const next = advancePhase(prev);
+      // Entering the night: arm the night flow at its first sub-step.
+      if (next.phase === "night") {
+        setNightStep("gate");
+        setVictimId(null);
+        setWardedId(null);
+      }
+      return next;
+    });
+  };
+
+  const handleConfirmVictim = () => {
+    if (victimId !== null) {
+      setNightStep("ward");
+    }
+  };
+
+  const handleConfirmWard = () => {
+    if (victimId === null) {
+      return;
+    }
+    // resolveNight is the ONLY death path: it kills (or spares) the victim and
+    // breaks to the next day — or ends the game. Randomness never enters here.
+    setGame((prev) => (prev ? resolveNight(prev, victimId, wardedId) : prev));
+    setNightStep("dawn");
+  };
+
+  const handleDawnContinue = () => {
+    // resolveNight already advanced to the next day (or ended the game); just
+    // rearm the night flow for next time.
+    setNightStep("gate");
+    setVictimId(null);
+    setWardedId(null);
   };
 
   const handleReset = () => {
@@ -123,6 +166,9 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setStep("lobby");
     setRevealIndex(0);
     setTrialId(null);
+    setNightStep("gate");
+    setVictimId(null);
+    setWardedId(null);
   };
 
   return (
@@ -217,6 +263,26 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
 
     if (game.status === "ended" && game.winner !== null) {
       return <EndView winner={game.winner} onReset={handleReset} />;
+    }
+
+    // The night flow owns the screen while it is night. At "dawn", resolveNight
+    // has already flipped the phase back to day, so keep showing the outcome
+    // until the host dismisses it.
+    if (game.phase === "night" || nightStep === "dawn") {
+      return (
+        <NightView
+          game={game}
+          step={nightStep}
+          victimId={victimId}
+          wardedId={wardedId}
+          onOpenGate={() => setNightStep("pick")}
+          onSelectVictim={setVictimId}
+          onConfirmVictim={handleConfirmVictim}
+          onSelectWard={setWardedId}
+          onConfirmWard={handleConfirmWard}
+          onDawnContinue={handleDawnContinue}
+        />
+      );
     }
 
     return (
