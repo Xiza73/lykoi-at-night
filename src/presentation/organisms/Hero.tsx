@@ -132,7 +132,7 @@ export function Hero() {
         style={{
           position: "relative",
           textAlign: "center",
-          maxWidth: "900px",
+          maxWidth: "640px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",

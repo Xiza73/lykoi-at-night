@@ -8,10 +8,12 @@ export function SiteFooter() {
         padding: "clamp(30px, 6vw, 60px) clamp(16px, 5vw, 64px)",
         borderTop: "1px solid var(--lyk-line-2)",
         display: "flex",
+        flexDirection: "column",
         flexWrap: "wrap",
         gap: "16px",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "center",
+        textAlign: "center",
       }}
     >
       <span

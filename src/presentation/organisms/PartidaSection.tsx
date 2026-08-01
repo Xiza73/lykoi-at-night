@@ -24,23 +24,21 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
     >
       <div
         style={{
-          maxWidth: "1180px",
+          maxWidth: "600px",
           margin: "0 auto",
           display: "flex",
-          flexWrap: "wrap",
-          gap: "clamp(20px, 4vw, 44px)",
-          alignItems: "flex-start",
-          justifyContent: "center",
+          flexDirection: "column",
+          gap: "clamp(24px, 5vw, 44px)",
+          alignItems: "center",
         }}
       >
         <div
           style={{
-            flex: "1 1 300px",
-            maxWidth: "420px",
             display: "flex",
             flexDirection: "column",
             gap: "20px",
-            paddingTop: "8px",
+            alignItems: "center",
+            textAlign: "center",
           }}
         >
           <Eyebrow>Prototipo jugable</Eyebrow>
@@ -54,13 +52,12 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
               color: "var(--lyk-ink-strong)",
             }}
           >
-            La noche corre
-            <br />
-            en un solo teléfono
+            La noche corre en un solo teléfono
           </h2>
           <p
             style={{
               margin: 0,
+              maxWidth: "44ch",
               fontSize: "15px",
               lineHeight: 1.7,
               color: "var(--lyk-muted)",
@@ -79,6 +76,8 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
               padding: "18px",
               border: "1px solid var(--lyk-line)",
               background: "rgba(19,21,24,.7)",
+              textAlign: "left",
+              maxWidth: "420px",
             }}
           >
             <Eyebrow style={{ letterSpacing: ".28em" }}>Cómo se pasa</Eyebrow>
@@ -104,7 +103,9 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
           </div>
         </div>
 
-        <GameScreen shuffle={shuffle} />
+        <div style={{ margin: "0 auto" }}>
+          <GameScreen shuffle={shuffle} />
+        </div>
       </div>
     </section>
   );

@@ -20,7 +20,7 @@ export function RolesSection() {
     >
       <div
         style={{
-          maxWidth: "1180px",
+          maxWidth: "760px",
           margin: "0 auto",
           display: "flex",
           flexDirection: "column",
@@ -32,7 +32,8 @@ export function RolesSection() {
             display: "flex",
             flexDirection: "column",
             gap: "12px",
-            maxWidth: "620px",
+            alignItems: "center",
+            textAlign: "center",
           }}
         >
           <Eyebrow>Identidades y cartas</Eyebrow>
@@ -56,7 +57,8 @@ export function RolesSection() {
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fill, minmax(min(100%, 260px), 1fr))",
+              "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+            justifyContent: "center",
             gap: "clamp(12px, 2.2vw, 20px)",
           }}
         >
@@ -73,7 +75,7 @@ export function RolesSection() {
             marginTop: "clamp(14px, 3vw, 30px)",
           }}
         >
-          <Eyebrow>El mazo de acciones</Eyebrow>
+          <Eyebrow style={{ textAlign: "center" }}>El mazo de acciones</Eyebrow>
           {actionGroups.map((group) => (
             <div
               key={group.color}
@@ -113,7 +115,8 @@ export function RolesSection() {
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    "repeat(auto-fill, minmax(min(100%, 200px), 1fr))",
+                    "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
+                  justifyContent: "center",
                   gap: "clamp(12px, 2vw, 18px)",
                 }}
               >

@@ -12,13 +12,13 @@ const steps: Step[] = [
     number: "01",
     title: "Reparto en secreto",
     description:
-      "Cada gato recibe su rol y cuatro cartas de juicio boca abajo. Una de ellas puede llevar la marca.",
+      "Cada gato recibe su rol y tres cartas de juicio boca abajo. Una de ellas puede llevar la marca.",
   },
   {
     number: "02",
     title: "Cae la noche",
     description:
-      "Todos cierran los ojos. Los Lykoi eligen. La Vidente mira. El Guardián se acuesta en una puerta. Nadie habla.",
+      "Todos cierran los ojos. Los Lykoi eligen a su presa. El Guardián vela una puerta: quien esté detrás, sobrevive. Nadie habla.",
   },
   {
     number: "03",
@@ -59,18 +59,19 @@ export function RulesSection() {
     >
       <div
         style={{
-          maxWidth: "1180px",
+          maxWidth: "600px",
           margin: "0 auto",
           display: "flex",
-          flexWrap: "wrap",
-          gap: "clamp(24px, 5vw, 60px)",
+          flexDirection: "column",
+          gap: "clamp(24px, 5vw, 40px)",
         }}
       >
         <div
           style={{
-            flex: "1 1 260px",
             display: "flex",
             flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
             gap: "14px",
           }}
         >
@@ -85,11 +86,7 @@ export function RulesSection() {
               color: "var(--lyk-ink-strong)",
             }}
           >
-            Una ronda
-            <br />
-            dura lo que
-            <br />
-            dura la noche
+            Una ronda dura lo que dura la noche
           </h2>
           <p
             style={{
@@ -97,7 +94,7 @@ export function RulesSection() {
               fontSize: "14.5px",
               lineHeight: 1.7,
               color: "var(--lyk-muted-2)",
-              maxWidth: "34ch",
+              maxWidth: "44ch",
               textWrap: "pretty",
             }}
           >
@@ -110,7 +107,6 @@ export function RulesSection() {
 
         <div
           style={{
-            flex: "2 1 380px",
             display: "flex",
             flexDirection: "column",
           }}

@@ -14,9 +14,8 @@ const COLOR_ACCENT: Record<ActionColor, string> = {
 };
 
 /**
- * A Salem action-card tile. The card name takes the group's color accent; the
- * effect describes the real Salem behavior and a muted "Salem · <card>" tag
- * keeps the mapping to the original card visible.
+ * An action-card tile. The card name takes the group's color accent; the
+ * effect describes the card's behavior below its in-world quote.
  */
 export function HandCard({ card, color }: HandCardProps) {
   const accent = COLOR_ACCENT[color];
@@ -64,17 +63,6 @@ export function HandCard({ card, color }: HandCardProps) {
       >
         {card.effect}
       </p>
-      <span
-        style={{
-          marginTop: "2px",
-          fontSize: "9px",
-          letterSpacing: ".18em",
-          textTransform: "uppercase",
-          color: "var(--lyk-faint)",
-        }}
-      >
-        Salem · {card.salem}
-      </span>
     </div>
   );
 }
