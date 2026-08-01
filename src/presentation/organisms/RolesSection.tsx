@@ -1,12 +1,13 @@
 import { Eyebrow } from "../atoms/Eyebrow";
 import { RoleCard } from "../molecules/RoleCard";
 import { HandCard } from "../molecules/HandCard";
-import { roles } from "../data/roles";
-import { handCards } from "../data/handCards";
+import { identities } from "../data/identities";
+import { actionGroups } from "../data/actionCards";
 
 /**
- * The #cartas section: a heading, the 9-role gallery grid, and the
- * "Cartas de mano" row beneath it.
+ * The #cartas section, faithful to Salem 1692: the three identities (Lykoi,
+ * Vecindario, Guardián del Umbral), then the action-card deck grouped by its
+ * four colors (Rojas / Azules / Negras / Verdes).
  */
 export function RolesSection() {
   return (
@@ -34,7 +35,7 @@ export function RolesSection() {
             maxWidth: "620px",
           }}
         >
-          <Eyebrow>Los roles</Eyebrow>
+          <Eyebrow>Identidades y cartas</Eyebrow>
           <h2
             style={{
               margin: 0,
@@ -45,9 +46,9 @@ export function RolesSection() {
               color: "var(--lyk-ink-strong)",
             }}
           >
-            Nueve maneras
+            Tres identidades.
             <br />
-            de no ser tú mismo
+            Un mazo. Un callejón.
           </h2>
         </div>
 
@@ -55,12 +56,12 @@ export function RolesSection() {
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fill, minmax(min(100%, 232px), 1fr))",
+              "repeat(auto-fill, minmax(min(100%, 260px), 1fr))",
             gap: "clamp(12px, 2.2vw, 20px)",
           }}
         >
-          {roles.map((role) => (
-            <RoleCard key={role.id} role={role} />
+          {identities.map((identity) => (
+            <RoleCard key={identity.id} identity={identity} />
           ))}
         </div>
 
@@ -68,23 +69,60 @@ export function RolesSection() {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "18px",
+            gap: "clamp(20px, 4vw, 34px)",
             marginTop: "clamp(14px, 3vw, 30px)",
           }}
         >
-          <Eyebrow>Cartas de mano</Eyebrow>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fill, minmax(min(100%, 190px), 1fr))",
-              gap: "clamp(12px, 2vw, 18px)",
-            }}
-          >
-            {handCards.map((card) => (
-              <HandCard key={card.id} card={card} />
-            ))}
-          </div>
+          <Eyebrow>El mazo de acciones</Eyebrow>
+          {actionGroups.map((group) => (
+            <div
+              key={group.color}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: "12px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    letterSpacing: ".34em",
+                    textTransform: "uppercase",
+                    color: "var(--lyk-ink)",
+                  }}
+                >
+                  {group.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--lyk-faint)",
+                  }}
+                >
+                  {group.note}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fill, minmax(min(100%, 200px), 1fr))",
+                  gap: "clamp(12px, 2vw, 18px)",
+                }}
+              >
+                {group.cards.map((card) => (
+                  <HandCard key={card.id} card={card} color={group.color} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

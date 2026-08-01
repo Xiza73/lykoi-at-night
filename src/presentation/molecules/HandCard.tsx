@@ -1,22 +1,33 @@
-import type { HandCard as HandCardData } from "../data/handCards";
+import type { ActionCard, ActionColor } from "../data/actionCards";
 
 interface HandCardProps {
-  card: HandCardData;
+  card: ActionCard;
+  color: ActionColor;
 }
 
+/** Per-color accent used for the card name and border tint. */
+const COLOR_ACCENT: Record<ActionColor, string> = {
+  rojas: "var(--lyk-blood)",
+  azules: "var(--lyk-night)",
+  negras: "var(--lyk-faint)",
+  verdes: "var(--lyk-moss)",
+};
+
 /**
- * A "Carta de mano" tile. Gold-toned cards use the neutral surface; blood-toned
- * cards (Presagio) get a warmer frame and background, matching the design.
+ * A Salem action-card tile. The card name takes the group's color accent; the
+ * effect describes the real Salem behavior and a muted "Salem · <card>" tag
+ * keeps the mapping to the original card visible.
  */
-export function HandCard({ card }: HandCardProps) {
-  const isBlood = card.tone === "blood";
+export function HandCard({ card, color }: HandCardProps) {
+  const accent = COLOR_ACCENT[color];
 
   return (
     <div
       style={{
-        border: `1px solid ${isBlood ? "#3d2620" : "var(--lyk-line)"}`,
-        background: isBlood ? "#14100f" : "var(--lyk-surface)",
-        padding: "18px",
+        border: `1px solid var(--lyk-line)`,
+        borderTop: `2px solid ${accent}`,
+        background: "var(--lyk-surface)",
+        padding: "16px 18px 18px",
         display: "flex",
         flexDirection: "column",
         gap: "8px",
@@ -24,13 +35,13 @@ export function HandCard({ card }: HandCardProps) {
     >
       <span
         style={{
-          fontSize: "9.5px",
-          letterSpacing: ".22em",
-          textTransform: "uppercase",
-          color: isBlood ? "var(--lyk-blood)" : "var(--lyk-gold)",
+          fontFamily: "var(--lyk-serif)",
+          fontSize: "12.5px",
+          fontStyle: "italic",
+          color: "var(--lyk-muted)",
         }}
       >
-        {card.kind}
+        {card.quote}
       </span>
       <h4
         style={{
@@ -38,7 +49,7 @@ export function HandCard({ card }: HandCardProps) {
           fontFamily: "var(--lyk-serif)",
           fontWeight: 400,
           fontSize: "20px",
-          color: "var(--lyk-ink-strong)",
+          color: accent,
         }}
       >
         {card.name}
@@ -51,8 +62,19 @@ export function HandCard({ card }: HandCardProps) {
           color: "var(--lyk-muted-2)",
         }}
       >
-        {card.description}
+        {card.effect}
       </p>
+      <span
+        style={{
+          marginTop: "2px",
+          fontSize: "9px",
+          letterSpacing: ".18em",
+          textTransform: "uppercase",
+          color: "var(--lyk-faint)",
+        }}
+      >
+        Salem · {card.salem}
+      </span>
     </div>
   );
 }

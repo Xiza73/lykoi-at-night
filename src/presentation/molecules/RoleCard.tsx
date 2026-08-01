@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { type Role, FACTION_STROKE } from "../data/roles";
+import { type Identity, FACTION_STROKE } from "../data/identities";
 
 interface RoleCardProps {
-  role: Role;
+  identity: Identity;
 }
 
 /**
- * A single role card in the #cartas gallery. Maldito cards use a blood-toned
- * frame; Vecindario cards use a neutral frame that warms to gold on hover
- * (reproducing the design's `style-hover`).
+ * A single identity card in the #cartas gallery. Maldito (Lykoi) uses a
+ * blood-toned frame; Vecindario cards use a neutral frame that warms to gold on
+ * hover (reproducing the design's `style-hover`). The corner tag shows the
+ * Salem tryal card the identity carries.
  */
-export function RoleCard({ role }: RoleCardProps) {
+export function RoleCard({ identity }: RoleCardProps) {
   const [hovered, setHovered] = useState(false);
-  const isMaldito = role.faction === "Maldito";
+  const isMaldito = identity.faction === "Maldito";
 
   const baseBorder = isMaldito ? "#3d2620" : "#2a2d33";
   const hoverBorder = isMaldito ? "var(--lyk-blood)" : "var(--lyk-gold)";
@@ -20,7 +21,6 @@ export function RoleCard({ role }: RoleCardProps) {
     ? "linear-gradient(170deg, #1a1315, #0d0f12)"
     : "linear-gradient(170deg, #16191d, #0d0f12)";
   const tagColor = isMaldito ? "var(--lyk-blood)" : "var(--lyk-gold)";
-  const tag = role.count ? `${role.faction} · ${role.count}` : role.faction;
 
   return (
     <div
@@ -53,16 +53,17 @@ export function RoleCard({ role }: RoleCardProps) {
             color: tagColor,
           }}
         >
-          {tag}
+          {identity.faction}
         </span>
         <span
           style={{
             fontFamily: "var(--lyk-serif)",
-            fontSize: "13px",
+            fontSize: "12px",
+            fontStyle: "italic",
             color: "#4a463f",
           }}
         >
-          {role.roman}
+          {identity.tryal}
         </span>
       </div>
 
@@ -70,11 +71,11 @@ export function RoleCard({ role }: RoleCardProps) {
         viewBox="0 0 24 24"
         style={{ width: "62px", height: "62px", alignSelf: "center" }}
         fill="none"
-        stroke={FACTION_STROKE[role.faction]}
+        stroke={FACTION_STROKE[identity.faction]}
         strokeWidth="1"
         filter="url(#lykPencil)"
       >
-        {role.art}
+        {identity.art}
       </svg>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
@@ -87,7 +88,7 @@ export function RoleCard({ role }: RoleCardProps) {
             color: "var(--lyk-ink-strong)",
           }}
         >
-          {role.name}
+          {identity.name}
         </h3>
         <p
           style={{
@@ -97,7 +98,7 @@ export function RoleCard({ role }: RoleCardProps) {
             color: "var(--lyk-muted)",
           }}
         >
-          {role.description}
+          {identity.description}
         </p>
       </div>
     </div>
