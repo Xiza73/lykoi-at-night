@@ -12,7 +12,7 @@ const steps: Step[] = [
     number: "01",
     title: "Reparto en secreto",
     description:
-      "Cada gato recibe su rol y tres cartas de juicio boca abajo. Una de ellas puede llevar la marca.",
+      "Cada gato recibe su rol y tres cartas de sombra boca abajo. Una de ellas puede llevar la marca.",
   },
   {
     number: "02",
@@ -30,7 +30,7 @@ const steps: Step[] = [
     number: "04",
     title: "El juicio",
     description:
-      "Tres marcas y el acusado revela una carta de juicio al azar. Si sale la marca, se acabó para él. Si no, todos miran al suelo.",
+      "Tres marcas y el acusado revela una carta de sombra al azar. Si sale la marca, se acabó para él. Si no, todos miran al suelo.",
   },
   {
     number: "05",

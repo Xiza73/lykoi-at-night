@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
  *
  * Salem has NO roster of special roles: every player is one of three
  * tryal-card types — la Bruja (Witch), No es bruja (Not-a-Witch), or el
- * Alguacil (Constable). These three cards, plus their hand-drawn SVG art, are
+ * Guardián (Constable). These three cards, plus their hand-drawn SVG art, are
  * the faithful presentation of that structure. Variety in the game lives in the
  * action-card deck (see actionCards.ts), not here.
  */
@@ -16,7 +16,7 @@ export interface Identity {
   id: string;
   name: string;
   faction: Faction;
-  /** The Salem tryal card this identity carries (la Bruja / No es bruja / el Alguacil). */
+  /** The tryal card this identity carries (la Bruja / No es bruja / el Guardián). */
   tryal: string;
   description: string;
   /** The card's SVG art body (paths only, wrapped by <RoleCard>). */
@@ -36,7 +36,7 @@ export const identities: Identity[] = [
     faction: "Maldito",
     tryal: "la Bruja",
     description:
-      "Tu carta de juicio lleva la marca. De noche, los Lykoi eligen a quién se lleva la oscuridad.",
+      "Tu carta de sombra lleva la marca. De noche, los Lykoi eligen a quién se lleva la oscuridad.",
     // Reused Lykoi cat SVG.
     art: (
       <>
@@ -58,7 +58,7 @@ export const identities: Identity[] = [
     faction: "Vecindario",
     tryal: "No es bruja",
     description:
-      "Ninguna de tus cartas de juicio lleva la marca. Tu única arma es la palabra y el voto.",
+      "Ninguna de tus cartas de sombra lleva la marca. Tu única arma es la palabra y el voto.",
     // Reused "Gato Doméstico" SVG — the plain neighborhood cat.
     art: (
       <>
@@ -73,9 +73,9 @@ export const identities: Identity[] = [
     id: "guardian",
     name: "Guardián del Umbral",
     faction: "Vecindario",
-    tryal: "el Alguacil",
+    tryal: "el Guardián",
     description:
-      "Tienes la carta del Alguacil. Cada noche velas una puerta; quien esté detrás sobrevive. Si revelan tu carta en un juicio, pierdes el poder.",
+      "Tienes la carta del Guardián. Cada noche velas una puerta; quien esté detrás sobrevive. Si la revelan en un juicio, pierdes el poder.",
     // Reused Guardián del Umbral SVG.
     art: (
       <>

@@ -6,7 +6,7 @@ export function tryalLabel(card: TryalCard): string {
     case "witch":
       return "La Marca";
     case "constable":
-      return "El Alguacil";
+      return "El Guardián";
     case "not_witch":
       return "Sin mancha";
   }

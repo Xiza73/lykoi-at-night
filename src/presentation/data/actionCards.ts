@@ -104,7 +104,7 @@ export const actionGroups: ActionGroup[] = [
         id: "conspiracion",
         name: "Conspiración",
         quote: '"Maullido en coro"',
-        effect: "Todos pasan una carta de juicio al gato de su izquierda.",
+        effect: "Todos pasan una carta de sombra al gato de su izquierda.",
       },
       {
         id: "perro",

@@ -65,7 +65,7 @@ export function TrialView({
         >
           {resolved
             ? "La carta está sobre la mesa."
-            : "Que revele una carta de juicio. Si sale la marca, se acabó para él."}
+            : "Que revele una carta de sombra. Si sale la marca, se acabó para él."}
         </p>
       </div>
 
