@@ -6,6 +6,7 @@ export type Role =
   | "seer"
   | "guardian"
   | "hunter"
+  | "insomniac"
   | "villager";
 
 /** The two teams. */

@@ -62,6 +62,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-gold)",
         desc: "Si cae, se lleva a otro gato con él. Rencoroso incluso muerto.",
       };
+    case "insomniac":
+      return {
+        name: "El Insomne",
+        faction: "Vecindario",
+        tone: "var(--lyk-gold)",
+        desc: "No duerme: oye cuántos Lykoi rondaron esa noche, nunca quiénes.",
+      };
     case "villager":
       return {
         name: "Gato Doméstico",

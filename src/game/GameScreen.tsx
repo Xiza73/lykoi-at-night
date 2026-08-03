@@ -17,9 +17,18 @@ import { NightView, TurnedView, type NightStep } from "./views/NightView";
 import { DayView } from "./views/DayView";
 import { EndView } from "./views/EndView";
 import { HunterView } from "./views/HunterView";
+import { InsomniacView } from "./views/InsomniacView";
 
 /** The finite set of screens the pass-and-play flow moves through. */
-type Step = "lobby" | "reveal" | "night" | "turned" | "day" | "hunter" | "end";
+type Step =
+  | "lobby"
+  | "reveal"
+  | "night"
+  | "turned"
+  | "insomniac"
+  | "day"
+  | "hunter"
+  | "end";
 
 interface GameScreenProps {
   /**
@@ -140,11 +149,33 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       setStep("turned");
       return;
     }
-    setNightStep("dawn");
+    proceedToDawn(resolved);
   };
 
   const handleTurnedContinue = () => {
-    // Dismiss the private turn notice and fall through to the dawn announcement.
+    // Dismiss the private turn notice and fall through to the dawn flow.
+    if (!game) {
+      return;
+    }
+    proceedToDawn(game);
+  };
+
+  /**
+   * Routes the resolved night to the dawn announcement, gating El Insomne's
+   * private "footsteps" reading in front of it whenever the role is in play.
+   * The insomniac step is always shown while the role exists (even if dead) so
+   * nothing leaks — matching how the night turns are gated by role-in-game.
+   */
+  const proceedToDawn = (resolved: Game) => {
+    if (resolved.players.some((p) => p.role === "insomniac")) {
+      setStep("insomniac");
+      return;
+    }
+    setStep("night");
+    setNightStep("dawn");
+  };
+
+  const handleInsomniacContinue = () => {
     setStep("night");
     setNightStep("dawn");
   };
@@ -203,6 +234,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       setStep("night");
       return;
     }
+    // Dawn broke (the hunter fell at night): gate El Insomne's private reading
+    // before the day board, whenever the role is in play.
+    if (next.players.some((p) => p.role === "insomniac")) {
+      setStep("insomniac");
+      return;
+    }
     setSuspectId(null);
     setStep("day");
   };
@@ -235,7 +272,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // The header phase chip only shows during active play (night/day). The private
   // "you were turned" gate still happens under the cover of night.
   const phase =
-    step === "night" || step === "turned"
+    step === "night" || step === "turned" || step === "insomniac"
       ? "night"
       : step === "day"
         ? "day"
@@ -315,6 +352,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
 
     if (step === "turned" && turnedName !== null) {
       return <TurnedView name={turnedName} onContinue={handleTurnedContinue} />;
+    }
+
+    if (step === "insomniac") {
+      // Gated by the role being in the game — always shown while El Insomne is in
+      // play (even dead), so the private footsteps reading never leaks who lives.
+      return <InsomniacView game={game} onContinue={handleInsomniacContinue} />;
     }
 
     if (step === "hunter") {

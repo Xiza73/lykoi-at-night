@@ -368,7 +368,8 @@ function TableStep({
     wolfCount +
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0);
+    (config.hunter ? 1 : 0) +
+    (config.insomniac ? 1 : 0);
   const town = count - wolfCount;
   const configValid =
     config.werewolves >= 1 && wolfCount < town && specials <= count;
@@ -552,6 +553,11 @@ function RolePicker({
         label="Ronroneo Falso"
         active={config.trickster ?? false}
         onToggle={() => onChange({ ...config, trickster: !config.trickster })}
+      />
+      <RoleToggle
+        label="El Insomne"
+        active={config.insomniac ?? false}
+        onToggle={() => onChange({ ...config, insomniac: !config.insomniac })}
       />
 
       {showComingSoon

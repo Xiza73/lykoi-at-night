@@ -40,13 +40,14 @@ describe("presetConfig", () => {
     });
   });
 
-  it("Avanzado is Clásico plus the Cazador de Sombras and the Madre Camada", () => {
+  it("Avanzado is Clásico plus the Cazador, the Madre Camada and El Insomne", () => {
     expect(presetConfig("advanced", 8)).toEqual({
       werewolves: recommendedWolves(8),
       seer: true,
       guardian: true,
       hunter: true,
       infector: true,
+      insomniac: true,
     });
   });
 

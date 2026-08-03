@@ -20,8 +20,16 @@ export function presetConfig(preset: PresetId, count: number): RoleConfig {
     case "basic":
       return { werewolves, seer: false, guardian: false };
     case "advanced":
-      // Avanzado is Clásico plus the Cazador de Sombras and the Madre Camada.
-      return { werewolves, seer: true, guardian: true, hunter: true, infector: true };
+      // Avanzado is Clásico plus the Cazador de Sombras, the Madre Camada and El
+      // Insomne. El Insomne is town, so it does not raise the wolf count.
+      return {
+        werewolves,
+        seer: true,
+        guardian: true,
+        hunter: true,
+        infector: true,
+        insomniac: true,
+      };
     case "classic":
     case "custom":
       // Custom starts from the Clásico hand as its baseline.
@@ -34,9 +42,9 @@ export function presetConfig(preset: PresetId, count: number): RoleConfig {
  * dealable. Display-only: they are NOT part of `RoleConfig` and never reach the
  * domain. The Cazador de Sombras, the Madre Camada and the Ronroneo Falso
  * graduated out of this list — they are now real toggles feeding `config.hunter`,
- * `config.infector` and `config.trickster`.
+ * `config.infector`, `config.trickster` and `config.insomniac`.
  */
-export const COMING_SOON_ROLES = ["El Insomne", "La Chismosa"] as const;
+export const COMING_SOON_ROLES = ["La Chismosa"] as const;
 
 /**
  * Cat-name pool used to prefill the roster so a deal is never blocked by an

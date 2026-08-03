@@ -29,6 +29,7 @@ export interface RoleConfig {
   readonly hunter?: boolean;
   readonly infector?: boolean;
   readonly trickster?: boolean;
+  readonly insomniac?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -66,7 +67,11 @@ export function dealRoles(
   const wolfCount =
     config.werewolves + (config.infector ? 1 : 0) + (config.trickster ? 1 : 0);
   const specials =
-    wolfCount + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0) + (config.hunter ? 1 : 0);
+    wolfCount +
+    (config.seer ? 1 : 0) +
+    (config.guardian ? 1 : 0) +
+    (config.hunter ? 1 : 0) +
+    (config.insomniac ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -93,6 +98,9 @@ export function dealRoles(
   }
   if (config.hunter) {
     roles.push("hunter");
+  }
+  if (config.insomniac) {
+    roles.push("insomniac");
   }
   while (roles.length < seats.length) {
     roles.push("villager");

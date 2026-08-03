@@ -140,6 +140,22 @@ async function fillInfectorLobbyAndDeal(
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
+/**
+ * Fills a six-seat lobby via Personalizado (Clásico + El Insomne) and deals. With
+ * the identity shuffle the roles fall in seat order: Ana (p1) wolf, Beto (p2) seer,
+ * Caro (p3) guardian, Dario (p4) El Insomne, Eva/Fabi villagers.
+ */
+async function fillInsomniacLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Personalizado starts from the Clásico hand; add El Insomne.
+  await user.click(screen.getByRole("button", { name: /^el insomne$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -335,6 +351,47 @@ describe("GameScreen", () => {
     // Fabi is alive (turned, not killed) and selectable as a suspect.
     expect(
       screen.getByRole("button", { name: /señalar a fabi/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("gates El Insomne's private dawn footsteps reading, showing the living-wolf count", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillInsomniacLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night: guardian passes, wolves take Fabi (a villager), seer looks at Eva.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Before dawn: the private gate hands the phone to El Insomne.
+    expect(
+      screen.getByText(/pásale el teléfono a el insomne/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+
+    // The reading: one Lykoi still prowls (the lone werewolf, Ana).
+    expect(
+      screen.getByText(/anoche oíste un paso en el tejado/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/esos son los lykoi que aún rondan/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /entendido/i }));
+
+    // Then dawn breaks and reports Fabi's death, into the day board.
+    expect(screen.getByText(/fabi no volvió al callejón/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
     ).toBeInTheDocument();
   });
 

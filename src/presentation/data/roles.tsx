@@ -143,7 +143,7 @@ export const roles: Role[] = [
     faction: "Vecindario",
     description:
       "No duerme: oye cuántos pasos hubo esa noche, nunca de quién.",
-    implemented: false,
+    implemented: true,
     art: (
       <>
         <path d="M9 21 h6 v-9 h-6z" />

@@ -55,6 +55,11 @@ export function livingTown(game: Game): readonly Player[] {
   return game.players.filter((player) => player.alive && !isWolf(player.role));
 }
 
+/** The footsteps the Insomne hears at dawn: how many Lykoi still prowl. */
+export function nightFootsteps(game: Game): number {
+  return livingWolves(game).length;
+}
+
 /**
  * Evaluates the win condition:
  * - the town wins once no werewolf is left alive;
