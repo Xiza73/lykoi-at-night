@@ -170,6 +170,25 @@ async function fillGossipLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) 
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
+/**
+ * Fills a six-seat lobby via Personalizado with BOTH the Cazador de Sombras and
+ * the Madre Camada, and deals. With the identity shuffle: Ana (p1) wolf, Beto
+ * (p2) the Madre Camada, Caro (p3) seer, Dario (p4) guardian, Eva (p5) the
+ * Cazador, Fabi (p6) a villager. Used to check the same-night ordering when the
+ * Cazador dies AND an infection lands.
+ */
+async function fillHunterAndInfectorLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Clásico base + the Madre Camada + the Cazador de Sombras.
+  await user.click(screen.getByRole("button", { name: /^madre camada$/i }));
+  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -295,6 +314,47 @@ describe("GameScreen", () => {
     // Eva was taken down by the Cazador.
     expect(
       screen.getByRole("button", { name: /señalar a eva \(caído\)/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("when the Cazador falls and an infection lands the same night, the turn notice comes first, then the revenge (neither is swallowed)", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterAndInfectorLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Guardian passes.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Wolves take Eva (the Cazador) — she falls at night.
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a eva/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+
+    // The Madre Camada converts Fabi (a villager, not the wolves' target).
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /convertir a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seer looks at Dario, then resolve the night.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a dario/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // FIRST: Fabi's private "you were turned" gate — NOT swallowed by the revenge.
+    expect(screen.getByText(/pásale el teléfono a fabi/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    expect(
+      screen.getByText(/anoche te mordieron\. ahora cazás con los lykoi/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /entendido/i }));
+
+    // THEN: the fallen Cazador's revenge step opens (it was not lost).
+    expect(
+      screen.getByRole("heading", { name: /el cazador de sombras cae/i }),
     ).toBeInTheDocument();
   });
 

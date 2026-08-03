@@ -141,23 +141,31 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     const turnedThisNight = turned ? turned.name : null;
     setTurnedName(turnedThisNight);
     setGame(resolved);
-    // The Cazador falls at night: pause for the public revenge before dawn.
+    // When several things land the same night, chain the gates so none is
+    // swallowed: the freshly-turned cat learns their fate first, THEN the fallen
+    // Cazador's revenge (see handleTurnedContinue), THEN dawn.
+    if (turnedThisNight !== null) {
+      setStep("turned");
+      return;
+    }
+    // Otherwise, if the Cazador fell at night, pause for the public revenge.
     if (resolved.pendingHunter !== null) {
       setHunterTargetId(null);
       setStep("hunter");
-      return;
-    }
-    // A private "you were turned" gate precedes dawn only when an infection landed.
-    if (turnedThisNight !== null) {
-      setStep("turned");
       return;
     }
     proceedToDawn(resolved);
   };
 
   const handleTurnedContinue = () => {
-    // Dismiss the private turn notice and fall through to the dawn flow.
+    // Dismiss the private turn notice. If the Cazador also fell this same night,
+    // his public revenge follows before dawn; otherwise fall through to dawn.
     if (!game) {
+      return;
+    }
+    if (game.pendingHunter !== null) {
+      setHunterTargetId(null);
+      setStep("hunter");
       return;
     }
     proceedToDawn(game);
