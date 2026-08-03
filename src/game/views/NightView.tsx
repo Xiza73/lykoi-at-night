@@ -25,8 +25,14 @@ interface NightViewProps {
   seated: Player | undefined;
   /** The vote round: 1, or 2 after a first-round tie. */
   round: 1 | 2;
-  /** The Guardian's warded player this night, or null for "nobody". */
+  /** The Curandero's warded player this night, or null for "nobody". */
   protectedId: string | null;
+  /**
+   * The player the Curandero warded LAST night, excluded from tonight's grid so
+   * he cannot watch over the same cat two nights running. Null on the first
+   * night / after an absent or illegal ward.
+   */
+  lastWarded: string | null;
   /** The Cazador's pre-committed shot this night, or null for "nobody". */
   hunterShotId: string | null;
   /** Votes cast so far this round, keyed by the voting wolf's id. */
@@ -64,6 +70,7 @@ export function NightView({
   seated,
   round,
   protectedId,
+  lastWarded,
   hunterShotId,
   wolfVotes,
   seerTargetId,
@@ -116,6 +123,7 @@ export function NightView({
       seated={seated}
       round={round}
       protectedId={protectedId}
+      lastWarded={lastWarded}
       hunterShotId={hunterShotId}
       wolfVotes={wolfVotes}
       seerTargetId={seerTargetId}
@@ -135,6 +143,7 @@ function ActionTurn({
   seated,
   round,
   protectedId,
+  lastWarded,
   hunterShotId,
   wolfVotes,
   seerTargetId,
@@ -149,6 +158,7 @@ function ActionTurn({
   seated: Player;
   round: 1 | 2;
   protectedId: string | null;
+  lastWarded: string | null;
   hunterShotId: string | null;
   wolfVotes: Record<string, string>;
   seerTargetId: string | null;
@@ -254,12 +264,28 @@ function ActionTurn({
   }
 
   if (seated.role === "guardian") {
+    // The Curandero can never watch over himself, nor the same cat two nights
+    // running: exclude both his own seat and last night's ward from the grid.
+    const lastWardedName = lastWarded
+      ? game.players.find((player) => player.id === lastWarded)?.name
+      : undefined;
+    const candidates = living.filter(
+      (player) => player.id !== seated.id && player.id !== lastWarded,
+    );
     return (
-      <Frame title="Sos el Guardián del Umbral" body="Velá a un gato esta noche; quien esté detrás, sobrevive.">
+      <Frame
+        title="Sos el Curandero del Callejón"
+        body="Curá a un gato esta noche y sobrevivirá a un ataque. Nunca a vos mismo."
+      >
+        {lastWardedName ? (
+          <Note tone="var(--lyk-gold)">
+            No podés cuidar a {lastWardedName} otra vez: anoche ya lo curaste.
+          </Note>
+        ) : null}
         <PlayerGrid
-          players={living}
+          players={candidates}
           selectedId={protectedId}
-          actionLabel={(name) => `Velar a ${name}`}
+          actionLabel={(name) => `Curar a ${name}`}
           onSelect={onSelectProtected}
         />
         <PassOption

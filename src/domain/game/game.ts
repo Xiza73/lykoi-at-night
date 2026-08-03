@@ -24,6 +24,12 @@ export interface Game {
   readonly status: GameStatus;
   readonly winner: Outcome | null;
   readonly pendingHunter: PlayerId | null;
+  /**
+   * The player the Curandero warded on the MOST RECENT resolved night (null if
+   * none / first night / warded nobody / the ward was illegal). Carried across
+   * nights so the Curandero cannot watch over the same cat two nights running.
+   */
+  readonly lastWarded: PlayerId | null;
 }
 
 /** Creates a new game: deals roles and opens on the first night. */
@@ -40,6 +46,7 @@ export function createGame(
     status: "in_progress",
     winner: null,
     pendingHunter: null,
+    lastWarded: null,
   };
 }
 
@@ -119,15 +126,25 @@ export function resolveNight(
   if (game.phase !== "night" || game.status === "ended") {
     return game;
   }
-  const guardianAlive = game.players.some(
+  // The living Curandero, if any. He watches over one cat; the ward is only
+  // valid when he watches someone OTHER than himself and NOT the same cat he
+  // warded last night. An illegal or absent ward protects nobody and resets the
+  // streak (lastWarded -> null). A future Bruja's poison should bypass the ward.
+  const guardian = game.players.find(
     (player) => player.alive && player.role === "guardian",
   );
+  const wardValid =
+    guardian != null &&
+    protectedId !== null &&
+    protectedId !== game.lastWarded &&
+    protectedId !== guardian.id;
+  const effectiveWard = wardValid ? protectedId : null;
   const victim =
     wolfTargetId === null
       ? null
       : (game.players.find((player) => player.id === wolfTargetId) ?? null);
   const saved =
-    guardianAlive && protectedId !== null && protectedId === wolfTargetId;
+    guardian != null && effectiveWard !== null && effectiveWard === wolfTargetId;
   const dies = victim !== null && victim.alive && !saved;
   let players = dies
     ? game.players.map((p) => (p.id === victim.id ? eliminate(p) : p))
@@ -140,7 +157,10 @@ export function resolveNight(
       p.id === hunterShotId && p.alive ? eliminate(p) : p,
     );
   }
-  const resolved = resolve({ ...game, players });
+  // Record this night's effective ward so the next night can reject a repeat.
+  // Threaded into the single resolved snapshot so every return path below (ended,
+  // hunter-shot, or advanced to day) carries it.
+  const resolved = resolve({ ...game, players, lastWarded: effectiveWard });
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
 }
 

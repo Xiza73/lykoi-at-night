@@ -17,7 +17,7 @@ const steps: Step[] = [
     number: "02",
     title: "Cae la noche",
     description:
-      "Todos cierran los ojos. Los Lykoi eligen presa, la Vidente investiga y el Guardián vela una puerta.",
+      "Todos cierran los ojos. Los Lykoi eligen presa, la Vidente investiga y el Curandero cura a un gato.",
   },
   {
     number: "03",

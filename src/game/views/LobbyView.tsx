@@ -220,7 +220,7 @@ function CountStep({
  */
 const SPECIAL_LABELS: { key: keyof RoleConfig; label: string }[] = [
   { key: "seer", label: "Vidente" },
-  { key: "guardian", label: "Guardián" },
+  { key: "guardian", label: "Curandero" },
   { key: "hunter", label: "Cazador" },
   { key: "mayor", label: "Alcalde" },
 ];
@@ -663,7 +663,7 @@ function RolePicker({
         onToggle={() => onChange({ ...config, seer: !config.seer })}
       />
       <RoleToggle
-        label="Guardián del Umbral"
+        label="Curandero del Callejón"
         active={config.guardian}
         onToggle={() => onChange({ ...config, guardian: !config.guardian })}
       />

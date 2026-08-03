@@ -513,6 +513,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           seated={seated}
           round={nightRound}
           protectedId={protectedId}
+          lastWarded={game.lastWarded}
           hunterShotId={hunterShotId}
           wolfVotes={wolfVotes}
           seerTargetId={seerTargetId}

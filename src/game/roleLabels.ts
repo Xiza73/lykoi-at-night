@@ -36,10 +36,10 @@ export function roleInfo(role: Role): RoleInfo {
       };
     case "guardian":
       return {
-        name: "Guardián del Umbral",
+        name: "Curandero del Callejón",
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
-        desc: "Cada noche velas una puerta; quien esté detrás, sobrevive.",
+        desc: "Cada noche curás a un gato y sobrevive a un ataque. Nunca a vos mismo, ni al mismo dos noches seguidas.",
       };
     case "hunter":
       return {

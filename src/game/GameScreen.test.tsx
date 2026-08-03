@@ -166,7 +166,7 @@ async function walkToDayNoNightKill(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
   await user.click(screen.getByRole("button", { name: /^listo$/i }));
   await openGate(user); // Caro (guardian): ward Fabi
-  await user.click(screen.getByRole("button", { name: /velar a fabi/i }));
+  await user.click(screen.getByRole("button", { name: /curar a fabi/i }));
   await user.click(screen.getByRole("button", { name: /^listo$/i }));
   for (let i = 0; i < 3; i += 1) {
     await openGate(user); // Dario, Eva, Fabi (villagers)
@@ -192,7 +192,7 @@ async function walkHunterNightNoKill(
   await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
   await user.click(screen.getByRole("button", { name: /^listo$/i }));
   await openGate(user); // Caro (guardian): wards Fabi
-  await user.click(screen.getByRole("button", { name: /velar a fabi/i }));
+  await user.click(screen.getByRole("button", { name: /curar a fabi/i }));
   await user.click(screen.getByRole("button", { name: /^listo$/i }));
   await openGate(user); // Dario (Cazador): pre-commits nobody
   await user.click(screen.getByRole("button", { name: /^a nadie$/i }));
@@ -256,10 +256,10 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Seat 3 — Caro (the Guardián): wards nobody.
+    // Seat 3 — Caro (the Curandero): wards nobody.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos el guardián del umbral/i }),
+      screen.getByRole("heading", { name: /sos el curandero del callejón/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
@@ -328,7 +328,7 @@ describe("GameScreen", () => {
         screen.queryByRole("heading", { name: /sos la vidente/i }),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("heading", { name: /sos el guardián/i }),
+        screen.queryByRole("heading", { name: /sos el curandero/i }),
       ).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /^listo$/i }));
     }
@@ -754,10 +754,10 @@ describe("GameScreen", () => {
     expect(balance).toHaveTextContent("+7");
     expect(balance).toHaveTextContent(/muy a favor del pueblo/i);
 
-    // Drop the Guardián del Umbral: its seat becomes a villager, so the total
+    // Drop the Curandero del Callejón: its seat becomes a villager, so the total
     // falls by the guardian's +3 minus the villager's +1 — a net −2, to +5.
     await user.click(
-      screen.getByRole("button", { name: /^guardián del umbral$/i }),
+      screen.getByRole("button", { name: /^curandero del callejón$/i }),
     );
     expect(balance).toHaveTextContent("+5");
   });
@@ -803,5 +803,64 @@ describe("GameScreen", () => {
     expect(
       screen.queryByRole("button", { name: /votar por beto/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("the Curandero cannot watch over the same cat two nights running", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1 — Ana (wolf) targets Fabi, Beto (seer) reads Eva, Caro (the
+    // Curandero) cures Fabi (saving the wolf's target), the villagers pass.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por fabi/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (Curandero): cures Fabi
+    expect(
+      screen.getByRole("heading", { name: /sos el curandero del callejón/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /curar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user); // Dario, Eva, Fabi (villagers)
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // The ward held: nobody fell — Fabi survived the attack.
+    expect(screen.getByText(/nadie cayó esta noche/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    // Day 1 — nobody is lynched, straight into night 2.
+    await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
+
+    // Night 2 — walk to the Curandero's turn. Ana votes Eva, Beto reads Dario.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a dario/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 3 — Caro (the Curandero). Fabi was cured last night, so Fabi is NOT
+    // offered tonight, while another living cat (Eva) still is.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos el curandero del callejón/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /curar a fabi/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /curar a eva/i }),
+    ).toBeInTheDocument();
+    // The exclusion note names last night's ward.
+    expect(
+      screen.getByText(/no podés cuidar a fabi otra vez/i),
+    ).toBeInTheDocument();
   });
 });

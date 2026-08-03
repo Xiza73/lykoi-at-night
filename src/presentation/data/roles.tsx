@@ -72,10 +72,10 @@ export const roles: Role[] = [
   },
   {
     id: "guardian",
-    name: "Guardián del Umbral",
+    name: "Curandero del Callejón",
     faction: "Vecindario",
     description:
-      "Vela la puerta que elija; quien esté detrás, sobrevive esa noche. Nunca se elige a sí mismo.",
+      "Cura a un gato cada noche y lo hace sobrevivir a un ataque. Nunca a sí mismo, ni al mismo dos noches seguidas.",
     implemented: true,
     art: (
       <>
