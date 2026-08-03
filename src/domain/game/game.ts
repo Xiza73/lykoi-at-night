@@ -102,11 +102,19 @@ export function investigate(game: Game, targetId: PlayerId): Alignment | null {
  * Resolves a night. The werewolves' victim dies unless a living guardian warded
  * exactly them. Then dawn breaks (advance to day) or the game ends. No-op unless
  * it is night and the game is in progress.
+ *
+ * The Cazador acts at night by PRE-COMMITTING a target (`hunterShotId`): he won't
+ * know he died until dawn, so if the pack kills him tonight his shot fires
+ * automatically at dawn — no interactive step. The shot is UNSTOPPABLE (a
+ * guardian ward never saves the shot target) and OPTIONAL (a null, or
+ * already-dead, `hunterShotId` means he takes nobody). The pre-commit is ignored
+ * entirely unless the hunter is the one the pack kills tonight.
  */
 export function resolveNight(
   game: Game,
   wolfTargetId: PlayerId | null,
   protectedId: PlayerId | null,
+  hunterShotId: PlayerId | null = null,
 ): Game {
   if (game.phase !== "night" || game.status === "ended") {
     return game;
@@ -121,11 +129,16 @@ export function resolveNight(
   const saved =
     guardianAlive && protectedId !== null && protectedId === wolfTargetId;
   const dies = victim !== null && victim.alive && !saved;
-  const players = dies
+  let players = dies
     ? game.players.map((p) => (p.id === victim.id ? eliminate(p) : p))
     : game.players;
-  if (dies && victim.role === "hunter") {
-    return { ...game, players, pendingHunter: victim.id };
+  // The Cazador died in his sleep: his pre-committed shot fires now, unstoppable
+  // (the ward never saves the shot) and automatic (no interactive revenge). A
+  // null or already-dead pre-commit means he takes nobody.
+  if (dies && victim.role === "hunter" && hunterShotId !== null) {
+    players = players.map((p) =>
+      p.id === hunterShotId && p.alive ? eliminate(p) : p,
+    );
   }
   const resolved = resolve({ ...game, players });
   return resolved.status === "ended" ? resolved : advancePhase(resolved);

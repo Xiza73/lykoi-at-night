@@ -57,6 +57,10 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const [seatIndex, setSeatIndex] = useState(0);
   const [nightSubStep, setNightSubStep] = useState<NightSubStep>("gate");
   const [protectedId, setProtectedId] = useState<string | null>(null);
+  // The Cazador's PRE-COMMITTED shot for this night, set on his turn and held
+  // (like the ward) until resolveNight. If the pack kills him tonight, this
+  // target falls too — automatically, at dawn. Null means he takes nobody.
+  const [hunterShotId, setHunterShotId] = useState<string | null>(null);
   // Votes for the CURRENT round, keyed by the voting wolf's id.
   const [wolfVotes, setWolfVotes] = useState<Record<string, string>>({});
   // The action-turn selections for the seated player (reset between turns).
@@ -66,6 +70,9 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // claimed, or null if the umbral held. Drives the dawn message even after the
   // phase has advanced to day.
   const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
+  // The second fallen at dawn: the Cazador's pre-committed shot, when the pack
+  // killed him tonight. Null on an ordinary night with a single (or no) death.
+  const [dawnShotName, setDawnShotName] = useState<string | null>(null);
   // True when a double tie in the pack's vote spared the night (nobody chosen).
   const [nightSpared, setNightSpared] = useState(false);
   // Day sub-flow state, mirroring the night machine. The town first DISCUSSES,
@@ -100,10 +107,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setSeatIndex(0);
     setNightSubStep("gate");
     setProtectedId(null);
+    setHunterShotId(null);
     setWolfVotes({});
     setWolfTargetId(null);
     setSeerTargetId(null);
     setDawnVictimName(null);
+    setDawnShotName(null);
     setNightSpared(false);
   };
 
@@ -171,27 +180,47 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     finishNight(victim, spared);
   };
 
-  // Runs the single domain resolution and routes to hunter/dawn.
+  // Runs the single domain resolution and reports the dawn. At night the Cazador
+  // never routes to the interactive step: his pre-committed shot resolves inside
+  // resolveNight, so a night can now claim TWO players (the hunter + his shot).
   const finishNight = (victimId: string | null, spared: boolean) => {
     if (!game) {
       return;
     }
-    // resolveNight is the ONLY night death path: it kills (or spares) the victim
-    // and breaks to the next day — or ends the game. Randomness never enters.
-    const resolved = resolveNight(game, victimId, protectedId);
-    const victim = victimId
-      ? resolved.players.find((player) => player.id === victimId)
-      : undefined;
-    // The victim fell if they were the pack's target and are now dead.
-    setDawnVictimName(victim && !victim.alive ? victim.name : null);
+    // resolveNight is the ONLY night death path: it kills (or spares) the pack's
+    // victim, fires the Cazador's pre-committed shot if he was the victim, and
+    // breaks to the next day — or ends the game. Randomness never enters.
+    const resolved = resolveNight(game, victimId, protectedId, hunterShotId);
+    // Name the dawn deaths by ROLE IN THE STORY, not seat order: the primary loss
+    // is always the pack's victim, and the shot is only reported when the player
+    // who fell WAS the Cazador (his pre-committed shot dragging a second player
+    // down). `died(id)` confirms a player was alive before and is dead after —
+    // robust to a null id or an already-dead target.
+    const died = (id: string | null): boolean => {
+      if (id === null) {
+        return false;
+      }
+      const before = game.players.find((p) => p.id === id);
+      const after = resolved.players.find((p) => p.id === id);
+      return (
+        before !== undefined &&
+        before.alive &&
+        after !== undefined &&
+        !after.alive
+      );
+    };
+    const victim = game.players.find((p) => p.id === victimId);
+    const dawnVictim = died(victimId) ? (victim?.name ?? null) : null;
+    // The shot fell only alongside the Cazador: report it when the pack's victim
+    // was the hunter AND his pre-committed shot actually died.
+    const dawnShot =
+      victim?.role === "hunter" && died(hunterShotId)
+        ? (game.players.find((p) => p.id === hunterShotId)?.name ?? null)
+        : null;
+    setDawnVictimName(dawnVictim);
+    setDawnShotName(dawnShot);
     setNightSpared(spared);
     setGame(resolved);
-    // If the Cazador fell at night, pause for the public revenge before dawn.
-    if (resolved.pendingHunter !== null) {
-      setHunterTargetId(null);
-      setStep("hunter");
-      return;
-    }
     setStep("night");
     setNightSubStep("dawn");
   };
@@ -339,30 +368,30 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setStep("night");
   };
 
-  const handleHunterRevenge = () => {
+  // The day-banished Cazador's interactive revenge. `targetId` is the chosen
+  // player, or null to take nobody (the "No llevarse a nadie" path).
+  const resolveHunterRevenge = (targetId: string | null) => {
     if (!game) {
       return;
     }
     // hunterRevenge is the ONLY revenge death path: it takes the chosen player,
     // clears the pause and lets the domain resolve + advance the clock.
-    const next = hunterRevenge(game, hunterTargetId);
+    const next = hunterRevenge(game, targetId);
     setGame(next);
     setHunterTargetId(null);
     if (next.status === "ended") {
       setStep("end");
       return;
     }
-    // The domain already advanced: dawn if the hunter died at night (now day),
-    // nightfall if lynched by day (now night). Route to whichever it reached.
-    if (next.phase === "night") {
-      armNight();
-      setStep("night");
-      return;
-    }
-    // Dawn broke (the hunter fell at night): straight to the day's discussion.
-    armDay();
-    setStep("day");
+    // This interactive revenge only follows a DAY banishment now (a night death
+    // pre-commits and resolves automatically), so the domain has advanced day ->
+    // night: fall straight into the next night.
+    armNight();
+    setStep("night");
   };
+
+  const handleHunterRevenge = () => resolveHunterRevenge(hunterTargetId);
+  const handleHunterTakeNobody = () => resolveHunterRevenge(null);
 
   const handleSkipDay = () => {
     if (!game) {
@@ -471,6 +500,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           targetId={hunterTargetId}
           onSelectTarget={setHunterTargetId}
           onConfirm={handleHunterRevenge}
+          onTakeNobody={handleHunterTakeNobody}
         />
       );
     }
@@ -483,13 +513,16 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           seated={seated}
           round={nightRound}
           protectedId={protectedId}
+          hunterShotId={hunterShotId}
           wolfVotes={wolfVotes}
           seerTargetId={seerTargetId}
           wolfTargetId={wolfTargetId}
           victimName={dawnVictimName}
+          shotName={dawnShotName}
           spared={nightSpared}
           onOpenGate={handleOpenGate}
           onSelectProtected={setProtectedId}
+          onSelectHunterShot={setHunterShotId}
           onSelectSeerTarget={setSeerTargetId}
           onSelectWolfTarget={setWolfTargetId}
           onConfirmAction={handleConfirmAction}

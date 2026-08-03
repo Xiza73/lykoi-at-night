@@ -27,18 +27,23 @@ interface NightViewProps {
   round: 1 | 2;
   /** The Guardian's warded player this night, or null for "nobody". */
   protectedId: string | null;
+  /** The Cazador's pre-committed shot this night, or null for "nobody". */
+  hunterShotId: string | null;
   /** Votes cast so far this round, keyed by the voting wolf's id. */
   wolfVotes: Record<string, string>;
   /** The seer's chosen player for the current turn, if any. */
   seerTargetId: string | null;
   /** This wolf's chosen prey for the current turn, if any. */
   wolfTargetId: string | null;
-  /** Whether the wolves' victim died this night (from the dawn snapshot). */
+  /** The first fallen at dawn (the wolves' victim), or null if none fell. */
   victimName: string | null;
+  /** The second fallen at dawn: the Cazador's shot when the pack killed him. */
+  shotName: string | null;
   /** Whether the double-tie spared the night (nobody was chosen). */
   spared: boolean;
   onOpenGate: () => void;
   onSelectProtected: (playerId: string | null) => void;
+  onSelectHunterShot: (playerId: string | null) => void;
   onSelectSeerTarget: (playerId: string) => void;
   onSelectWolfTarget: (playerId: string) => void;
   /** Confirms the current player's action and passes on (or resolves). */
@@ -59,20 +64,30 @@ export function NightView({
   seated,
   round,
   protectedId,
+  hunterShotId,
   wolfVotes,
   seerTargetId,
   wolfTargetId,
   victimName,
+  shotName,
   spared,
   onOpenGate,
   onSelectProtected,
+  onSelectHunterShot,
   onSelectSeerTarget,
   onSelectWolfTarget,
   onConfirmAction,
   onDawnContinue,
 }: NightViewProps) {
   if (subStep === "dawn") {
-    return <Dawn victimName={victimName} spared={spared} onContinue={onDawnContinue} />;
+    return (
+      <Dawn
+        victimName={victimName}
+        shotName={shotName}
+        spared={spared}
+        onContinue={onDawnContinue}
+      />
+    );
   }
 
   // Both "gate" and "action" need a seated player; the container only routes
@@ -101,10 +116,12 @@ export function NightView({
       seated={seated}
       round={round}
       protectedId={protectedId}
+      hunterShotId={hunterShotId}
       wolfVotes={wolfVotes}
       seerTargetId={seerTargetId}
       wolfTargetId={wolfTargetId}
       onSelectProtected={onSelectProtected}
+      onSelectHunterShot={onSelectHunterShot}
       onSelectSeerTarget={onSelectSeerTarget}
       onSelectWolfTarget={onSelectWolfTarget}
       onConfirmAction={onConfirmAction}
@@ -118,10 +135,12 @@ function ActionTurn({
   seated,
   round,
   protectedId,
+  hunterShotId,
   wolfVotes,
   seerTargetId,
   wolfTargetId,
   onSelectProtected,
+  onSelectHunterShot,
   onSelectSeerTarget,
   onSelectWolfTarget,
   onConfirmAction,
@@ -130,10 +149,12 @@ function ActionTurn({
   seated: Player;
   round: 1 | 2;
   protectedId: string | null;
+  hunterShotId: string | null;
   wolfVotes: Record<string, string>;
   seerTargetId: string | null;
   wolfTargetId: string | null;
   onSelectProtected: (playerId: string | null) => void;
+  onSelectHunterShot: (playerId: string | null) => void;
   onSelectSeerTarget: (playerId: string) => void;
   onSelectWolfTarget: (playerId: string) => void;
   onConfirmAction: () => void;
@@ -253,7 +274,35 @@ function ActionTurn({
     );
   }
 
-  // hunter and villager: no night action.
+  if (seated.role === "hunter") {
+    // The Cazador PRE-COMMITS in his sleep: he never learns tonight whether he
+    // died, so he picks now whom to take if the pack kills him. He can never
+    // target himself, and "A nadie" leaves the shot empty.
+    const candidates = living.filter((player) => player.id !== seated.id);
+    return (
+      <Frame
+        title="Sos el Cazador de Sombras"
+        body="Si esta noche te matan, ¿a quién te llevás con vos?"
+      >
+        <PlayerGrid
+          players={candidates}
+          selectedId={hunterShotId}
+          actionLabel={(name) => `Llevarse a ${name}`}
+          onSelect={onSelectHunterShot}
+        />
+        <PassOption
+          label="A nadie"
+          selected={hunterShotId === null}
+          onClick={() => onSelectHunterShot(null)}
+        />
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={onConfirmAction}>Listo</PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  // villager: no night action.
   return (
     <Frame
       title={`Sos ${roleInfo(seated.role).name}`}
@@ -266,32 +315,39 @@ function ActionTurn({
   );
 }
 
-/** The dawn report, after the container has resolved the pack's votes. */
+/**
+ * The dawn report, after the container has resolved the pack's votes. Reports
+ * one fallen — or TWO, when the Cazador was killed and his pre-committed shot
+ * took someone with him.
+ */
 function Dawn({
   victimName,
+  shotName,
   spared,
   onContinue,
 }: {
   victimName: string | null;
+  shotName: string | null;
   spared: boolean;
   onContinue: () => void;
 }) {
   const fell = victimName !== null;
+  const bothFell = fell && shotName !== null;
+  const body = bothFell
+    ? `Amanece. ${victimName} no volvió al callejón — y se llevó a ${shotName} con él.`
+    : fell
+      ? `Amanece. ${victimName} no volvió al callejón.`
+      : "Amaneció sin bajas.";
   return (
-    <Frame
-      title="Amanece"
-      body={
-        fell
-          ? `Amanece. ${victimName} no volvió al callejón.`
-          : "Amaneció sin bajas."
-      }
-    >
+    <Frame title="Amanece" body={body}>
       <Note tone={fell ? "var(--lyk-blood-bright)" : "var(--lyk-gold)"}>
-        {fell
-          ? `La oscuridad se llevó a ${victimName}.`
-          : spared
-            ? "La manada no se puso de acuerdo. Nadie cayó esta noche."
-            : "El umbral resistió. Nadie cayó esta noche."}
+        {bothFell
+          ? `La oscuridad se llevó a ${victimName}, y su furia arrastró a ${shotName}.`
+          : fell
+            ? `La oscuridad se llevó a ${victimName}.`
+            : spared
+              ? "La manada no se puso de acuerdo. Nadie cayó esta noche."
+              : "El umbral resistió. Nadie cayó esta noche."}
       </Note>
       <div style={{ marginTop: "auto" }}>
         <PrimaryButton onClick={onContinue}>Volver al callejón</PrimaryButton>

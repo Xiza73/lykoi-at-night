@@ -8,8 +8,10 @@ interface HunterViewProps {
   /** The player the fallen Cazador picks to take down, if any. */
   targetId: string | null;
   onSelectTarget: (playerId: string) => void;
-  /** Confirm the revenge (calls hunterRevenge). */
+  /** Confirm taking the picked target (calls hunterRevenge with the target). */
   onConfirm: () => void;
+  /** Confirm taking NOBODY (calls hunterRevenge with a null target). */
+  onTakeNobody: () => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export function HunterView({
   targetId,
   onSelectTarget,
   onConfirm,
+  onTakeNobody,
 }: HunterViewProps) {
   // Any living player can be taken — including the Lykoi that may have done it.
   const living = game.players.filter((player) => player.alive);
@@ -85,10 +88,34 @@ export function HunterView({
         ))}
       </div>
 
-      <div style={{ marginTop: "auto" }}>
+      <div
+        style={{
+          marginTop: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
         <PrimaryButton onClick={onConfirm} disabled={!target}>
-          {target ? `Se lleva a ${target.name}` : "Se lo lleva"}
+          {target ? `Se lleva a ${target.name}` : "Elegí a quién llevarte"}
         </PrimaryButton>
+        <button
+          type="button"
+          onClick={onTakeNobody}
+          style={{
+            padding: "12px",
+            border: "1px solid #2a2d33",
+            background: "rgba(255,255,255,.015)",
+            color: "var(--lyk-ink)",
+            fontSize: "12px",
+            letterSpacing: ".14em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            transition: "border-color .2s, color .2s",
+          }}
+        >
+          No llevarse a nadie
+        </button>
       </div>
     </div>
   );

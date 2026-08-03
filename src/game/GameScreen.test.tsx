@@ -175,6 +175,35 @@ async function walkToDayNoNightKill(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
 }
 
+/**
+ * Runs the first night of a Cazador lobby with NOBODY dying, so the Cazador
+ * survives into the day. Seat order: Ana (wolf) votes Fabi, Beto (seer) reads
+ * Eva, Caro (guardian) wards Fabi (saving the wolf's target), Dario (the
+ * Cazador) pre-commits nobody, Eva/Fabi pass. Leaves the screen on the day's
+ * discussion board.
+ */
+async function walkHunterNightNoKill(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await openGate(user); // Ana (wolf): votes Fabi
+  await user.click(screen.getByRole("button", { name: /votar por fabi/i }));
+  await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+  await openGate(user); // Beto (seer)
+  await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+  await user.click(screen.getByRole("button", { name: /^listo$/i }));
+  await openGate(user); // Caro (guardian): wards Fabi
+  await user.click(screen.getByRole("button", { name: /velar a fabi/i }));
+  await user.click(screen.getByRole("button", { name: /^listo$/i }));
+  await openGate(user); // Dario (Cazador): pre-commits nobody
+  await user.click(screen.getByRole("button", { name: /^a nadie$/i }));
+  await user.click(screen.getByRole("button", { name: /^listo$/i }));
+  for (let i = 0; i < 2; i += 1) {
+    await openGate(user); // Eva, Fabi (villagers)
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+  }
+  await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -544,7 +573,7 @@ describe("GameScreen", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("night-killing the Cazador opens the revenge step, then a pick advances to dawn", async () => {
+  it("the Cazador pre-commits at night; killing him takes both automatically, no interactive step", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
@@ -552,7 +581,10 @@ describe("GameScreen", () => {
     await walkReveal(user);
 
     // Night in seat order: Ana (wolf) votes Dario (the Cazador), Beto (seer)
-    // reads Eva, Caro (guardian) passes, Dario/Eva/Fabi pass.
+    // reads Eva, Caro (guardian) passes, then Dario (Cazador) PRE-COMMITS Beto —
+    // a shot target sitting EARLIER (seat 2) than the Cazador himself (seat 4).
+    // The dawn text must name the roles in the STORY (Dario fell and dragged Beto
+    // down), NOT whoever sits earliest — so this guards against seat-order naming.
     await openGate(user);
     await user.click(screen.getByRole("button", { name: /votar por dario/i }));
     await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
@@ -562,26 +594,151 @@ describe("GameScreen", () => {
     await openGate(user);
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
-    for (let i = 0; i < 3; i += 1) {
+
+    // Seat 4 — Dario (the Cazador): pre-commits Beto (seat 2) as his shot.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos el cazador de sombras/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /llevarse a beto/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seats 5-6 — Eva, Fabi (villagers): plain pass.
+    for (let i = 0; i < 2; i += 1) {
       await openGate(user);
       await user.click(screen.getByRole("button", { name: /^listo$/i }));
     }
 
-    // The Cazador fell: the revenge step opens BEFORE dawn.
+    // No interactive revenge step: dawn reports BOTH the Cazador and his shot,
+    // naming DARIO (the fallen Cazador) as the one who "no volvió" and BETO (his
+    // shot, though seated earlier) as the one "se llevó ... con él". Seat-order
+    // naming would invert these — this assertion catches that inversion.
+    expect(
+      screen.queryByRole("heading", { name: /el cazador de sombras cae/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/dario no volvió al callejón — y se llevó a beto con él/i),
+    ).toBeInTheDocument();
+
+    // Into the day's discussion board — both are fallen tiles.
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/dario \(caído\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/beto \(caído\)/i)).toBeInTheDocument();
+  });
+
+  it("a Cazador who pre-commits 'A nadie' falls alone at night", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Ana (wolf) kills Dario (Cazador), Beto reads Eva, Caro wards nobody, then
+    // Dario pre-commits "A nadie", Eva/Fabi pass.
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Cazador): takes nobody.
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /^a nadie$/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    for (let i = 0; i < 2; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Only the Cazador fell; no second name in the dawn report.
+    expect(
+      screen.getByText(/^amanece\. dario no volvió al callejón\.$/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/y se llevó a .+ con él/i),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(screen.getByLabelText(/dario \(caído\)/i)).toBeInTheDocument();
+    // Eva survived — a living vote target on the board.
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("banishing the Cazador by day opens the interactive revenge — a pick takes the target", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterLobbyAndDeal(user);
+    await walkReveal(user);
+    await walkHunterNightNoKill(user);
+
+    // Day: the town banishes Dario (the Cazador). Living seats in order:
+    // Ana, Beto, Caro, Dario, Eva, Fabi. Everyone but Dario votes him.
+    await driveDayVote(user, [
+      ["Ana", "Dario"],
+      ["Beto", "Dario"],
+      ["Caro", "Dario"],
+      ["Dario", null],
+      ["Eva", "Dario"],
+      ["Fabi", "Dario"],
+    ]);
+
+    // The Cazador was banished: the interactive revenge opens.
     expect(
       screen.getByRole("heading", { name: /el cazador de sombras cae/i }),
     ).toBeInTheDocument();
 
-    // Pick Eva as the one taken down, then confirm the revenge.
-    await user.click(screen.getByRole("button", { name: /llevarse a eva/i }));
-    await user.click(screen.getByRole("button", { name: /se lleva a eva/i }));
+    // He picks Ana (the wolf) and takes her down.
+    await user.click(screen.getByRole("button", { name: /llevarse a ana/i }));
+    await user.click(screen.getByRole("button", { name: /se lleva a ana/i }));
 
-    // Revenge resolved: the domain advanced to the day's discussion board.
+    // Ana (the last wolf) is gone: the town wins.
     expect(
-      screen.getByRole("heading", { name: /el callejón murmura/i }),
+      screen.getByText(/el vecindario duerme tranquilo/i),
     ).toBeInTheDocument();
-    // Eva was taken down by the Cazador — a fallen tile on the board.
-    expect(screen.getByLabelText(/eva \(caído\)/i)).toBeInTheDocument();
+  });
+
+  it("banishing the Cazador by day allows taking NOBODY", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterLobbyAndDeal(user);
+    await walkReveal(user);
+    await walkHunterNightNoKill(user);
+
+    await driveDayVote(user, [
+      ["Ana", "Dario"],
+      ["Beto", "Dario"],
+      ["Caro", "Dario"],
+      ["Dario", null],
+      ["Eva", "Dario"],
+      ["Fabi", "Dario"],
+    ]);
+
+    expect(
+      screen.getByRole("heading", { name: /el cazador de sombras cae/i }),
+    ).toBeInTheDocument();
+
+    // He takes nobody: no one else falls, the recount stands and night follows.
+    await user.click(
+      screen.getByRole("button", { name: /no llevarse a nadie/i }),
+    );
+
+    // Nobody else was taken: Ana and everyone but Dario are still living. The
+    // clock advances into the next night.
+    expect(
+      screen.getByRole("heading", { name: /le toca a ana/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows the live balance readout on the table step and updates as the hand changes", async () => {
