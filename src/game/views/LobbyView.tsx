@@ -1,128 +1,409 @@
-import { MAX_PLAYERS, MIN_PLAYERS, type RoleConfig } from "../../domain/game/player";
+import { useState } from "react";
+import {
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  type RoleConfig,
+  type Seat,
+} from "../../domain/game/player";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
 import { maxWolves } from "../roleLabels";
+import {
+  COMING_SOON_ROLES,
+  defaultName,
+  presetConfig,
+  type PresetId,
+} from "../presets";
 
 interface LobbyViewProps {
-  names: readonly string[];
-  roleConfig: RoleConfig;
-  onAddSeat: () => void;
-  onRemoveSeat: (index: number) => void;
-  onRenameSeat: (index: number, name: string) => void;
-  onRoleConfigChange: (roleConfig: RoleConfig) => void;
-  onDeal: () => void;
+  /** Deals the roster: hands the finished seats and role config to the game. */
+  onDeal: (seats: readonly Seat[], roleConfig: RoleConfig) => void;
+}
+
+/** The wizard's three sub-steps, walked in order (with back navigation). */
+type SubStep = "count" | "preset" | "table";
+
+const DEFAULT_COUNT = 6;
+
+/** Builds a roster of `count` names, prefilled from the cat-name pool. */
+function buildNames(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => defaultName(index));
 }
 
 /**
- * Pass-and-play lobby: edit the roster (4-12 seats) and choose which roles are
- * in play (how many Lykoi, plus the optional Seer and Guardian), then deal.
- * No room code — this is one shared device.
+ * Pass-and-play lobby, reworked into a player-count-first presets wizard. It owns
+ * all lobby state internally (count, chosen config, roster) and only reaches out
+ * to the game at the very end, when the roles are dealt. No room code — this is
+ * one shared device.
  */
-export function LobbyView({
-  names,
-  roleConfig,
-  onAddSeat,
-  onRemoveSeat,
-  onRenameSeat,
-  onRoleConfigChange,
-  onDeal,
-}: LobbyViewProps) {
-  const count = names.length;
-  const canAdd = count < MAX_PLAYERS;
-  const canRemove = count > MIN_PLAYERS;
-  const allNamed = names.every((name) => name.trim().length > 0);
-  const specials =
-    roleConfig.werewolves + (roleConfig.seer ? 1 : 0) + (roleConfig.guardian ? 1 : 0);
-  const town = count - roleConfig.werewolves;
-  const configValid =
-    roleConfig.werewolves >= 1 &&
-    roleConfig.werewolves < town &&
-    specials <= count;
-  const canDeal = count >= MIN_PLAYERS && allNamed && configValid;
+export function LobbyView({ onDeal }: LobbyViewProps) {
+  const [subStep, setSubStep] = useState<SubStep>("count");
+  const [count, setCount] = useState(DEFAULT_COUNT);
+  const [config, setConfig] = useState<RoleConfig>(() =>
+    presetConfig("classic", DEFAULT_COUNT),
+  );
+  const [preset, setPreset] = useState<PresetId>("classic");
+  const [names, setNames] = useState<string[]>(() => buildNames(DEFAULT_COUNT));
 
-  const townRoles = [
-    roleConfig.seer ? "Vidente" : null,
-    roleConfig.guardian ? "Guardián" : null,
-  ].filter((role): role is string => role !== null);
-  const summary = [
-    `${count} gatos`,
-    `${roleConfig.werewolves} Lykoi`,
-    ...townRoles,
-  ].join(" · ");
+  const setCountTo = (next: number) => {
+    const clamped = Math.min(Math.max(next, MIN_PLAYERS), MAX_PLAYERS);
+    setCount(clamped);
+    // Resize the roster, keeping any names the user already edited.
+    setNames((prev) =>
+      Array.from({ length: clamped }, (_, index) => prev[index] ?? defaultName(index)),
+    );
+  };
+
+  const choosePreset = (chosen: PresetId) => {
+    setPreset(chosen);
+    // Clamp the resolved config's werewolves into the valid band for this count.
+    const resolved = presetConfig(chosen, count);
+    const upper = maxWolves(count);
+    setConfig({
+      ...resolved,
+      werewolves: Math.min(Math.max(1, resolved.werewolves), upper),
+    });
+    setSubStep("table");
+  };
+
+  const handleDeal = () => {
+    const seats: Seat[] = names.map((name, index) => ({
+      id: `p${index + 1}`,
+      name: name.trim() || defaultName(index),
+    }));
+    onDeal(seats, config);
+  };
+
+  if (subStep === "count") {
+    return (
+      <CountStep
+        count={count}
+        onChange={setCountTo}
+        onNext={() => setSubStep("preset")}
+      />
+    );
+  }
+
+  if (subStep === "preset") {
+    return (
+      <PresetStep
+        count={count}
+        onPick={choosePreset}
+        onBack={() => setSubStep("count")}
+      />
+    );
+  }
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}
-    >
+    <TableStep
+      count={count}
+      preset={preset}
+      config={config}
+      names={names}
+      onConfigChange={setConfig}
+      onRename={(index, name) =>
+        setNames((prev) => prev.map((value, i) => (i === index ? name : value)))
+      }
+      onEditCount={() => setSubStep("count")}
+      onDeal={handleDeal}
+    />
+  );
+}
+
+const headingStyle = {
+  margin: 0,
+  fontFamily: "var(--lyk-serif)",
+  fontWeight: 400,
+  fontSize: "clamp(24px, 6.5vw, 30px)",
+  lineHeight: 1.1,
+  color: "var(--lyk-ink-strong)",
+} as const;
+
+const subtitleStyle = {
+  margin: 0,
+  fontSize: "13.5px",
+  lineHeight: 1.55,
+  color: "var(--lyk-muted-2)",
+  textWrap: "pretty",
+} as const;
+
+/** Sub-step 1: pick how many cats play tonight. */
+function CountStep({
+  count,
+  onChange,
+  onNext,
+}: {
+  count: number;
+  onChange: (next: number) => void;
+  onNext: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        <h3
-          style={{
-            margin: 0,
-            fontFamily: "var(--lyk-serif)",
-            fontWeight: 400,
-            fontSize: "clamp(24px, 6.5vw, 30px)",
-            lineHeight: 1.1,
-            color: "var(--lyk-ink-strong)",
-          }}
-        >
-          El callejón se llena
-        </h3>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "13.5px",
-            lineHeight: 1.55,
-            color: "var(--lyk-muted-2)",
-          }}
-        >
-          Un solo teléfono, se pasa de mano en mano. Anota a cada gato antes de
-          repartir.
+        <h3 style={headingStyle}>¿Cuántos gatos esta noche?</h3>
+        <p style={subtitleStyle}>
+          Un solo teléfono, se pasa de mano en mano. Empezá por cuántos se sientan
+          a la mesa.
         </p>
       </div>
 
-      <RolePicker
-        roleConfig={roleConfig}
-        playerCount={count}
-        onChange={onRoleConfigChange}
-      />
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "22px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "26px" }}>
+          <StepButton
+            label="Menos gatos"
+            disabled={count <= MIN_PLAYERS}
+            onClick={() => onChange(count - 1)}
+          >
+            −
+          </StepButton>
+          <span
+            aria-label="Número de gatos"
+            style={{
+              fontFamily: "var(--lyk-serif)",
+              fontSize: "clamp(64px, 22vw, 92px)",
+              lineHeight: 1,
+              color: "var(--lyk-gold)",
+              minWidth: "1.4em",
+              textAlign: "center",
+            }}
+          >
+            {count}
+          </span>
+          <StepButton
+            label="Más gatos"
+            disabled={count >= MAX_PLAYERS}
+            onClick={() => onChange(count + 1)}
+          >
+            +
+          </StepButton>
+        </div>
+        <span
+          style={{
+            fontSize: "11px",
+            letterSpacing: ".2em",
+            textTransform: "uppercase",
+            color: "var(--lyk-faint)",
+          }}
+        >
+          {MIN_PLAYERS} a {MAX_PLAYERS} gatos
+        </span>
+      </div>
+
+      <div style={{ marginTop: "auto" }}>
+        <PrimaryButton onClick={onNext} style={{ width: "100%" }}>
+          Siguiente
+        </PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
+/** Sub-step 2: choose a preset (Básico / Clásico / Avanzado / Personalizado). */
+function PresetStep({
+  count,
+  onPick,
+  onBack,
+}: {
+  count: number;
+  onPick: (preset: PresetId) => void;
+  onBack: () => void;
+}) {
+  const wolves = presetConfig("basic", count).werewolves;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <h3 style={headingStyle}>Elegí el modo</h3>
+        <p style={subtitleStyle}>
+          Para {count} gatos. Podés ajustar la mano en el siguiente paso.
+        </p>
+      </div>
 
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
+          gap: "10px",
           overflowY: "auto",
           paddingRight: "2px",
         }}
       >
-        {names.map((name, index) => (
-          <SeatRow
-            key={index}
-            index={index}
-            name={name}
-            canRemove={canRemove}
-            onRename={(value) => onRenameSeat(index, value)}
-            onRemove={() => onRemoveSeat(index)}
-          />
-        ))}
+        <PresetCard
+          title="Básico"
+          detail={`Solo Lykoi (${wolves}) y gatos honestos.`}
+          onSelect={() => onPick("basic")}
+        />
+        <PresetCard
+          title="Clásico"
+          detail={`${wolves} Lykoi, Vidente y Guardián del Umbral.`}
+          onSelect={() => onPick("classic")}
+        />
+        <PresetCard
+          title="Avanzado"
+          detail="Clásico + roles con poderes especiales."
+          badge="Próximamente"
+          disabled
+        />
+        <PresetCard
+          title="Personalizado"
+          detail="Armá tu propia mano, rol por rol."
+          onSelect={() => onPick("custom")}
+        />
       </div>
 
-      <PrimaryButton variant="ghost" onClick={onAddSeat} disabled={!canAdd}>
-        + Añadir gato
-      </PrimaryButton>
+      <div style={{ marginTop: "auto" }}>
+        <PrimaryButton variant="ghost" onClick={onBack} style={{ width: "100%" }}>
+          Volver
+        </PrimaryButton>
+      </div>
+    </div>
+  );
+}
 
-      <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <div
-          style={{
-            fontSize: "12px",
-            letterSpacing: ".04em",
-            color: "var(--lyk-faint)",
-            textAlign: "center",
-          }}
-        >
-          {summary}
+function PresetCard({
+  title,
+  detail,
+  badge,
+  disabled = false,
+  onSelect,
+}: {
+  title: string;
+  detail: string;
+  badge?: string;
+  disabled?: boolean;
+  onSelect?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={title}
+      disabled={disabled}
+      onClick={onSelect}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: "6px",
+        padding: "14px 16px",
+        textAlign: "left",
+        background: "rgba(255,255,255,.015)",
+        border: "1px solid #2a2d33",
+        color: "var(--lyk-ink)",
+        opacity: disabled ? 0.42 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "border-color .2s, background .2s",
+      }}
+    >
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          fontFamily: "var(--lyk-serif)",
+          fontSize: "18px",
+          color: disabled ? "var(--lyk-muted-2)" : "var(--lyk-gold)",
+        }}
+      >
+        {title}
+        {badge ? (
+          <span
+            style={{
+              fontFamily: "var(--lyk-sans)",
+              fontSize: "9px",
+              letterSpacing: ".18em",
+              textTransform: "uppercase",
+              padding: "2px 7px",
+              border: "1px solid #3a3833",
+              color: "var(--lyk-faint)",
+            }}
+          >
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      <span style={{ fontSize: "12.5px", lineHeight: 1.5, color: "var(--lyk-muted-2)" }}>
+        {detail}
+      </span>
+    </button>
+  );
+}
+
+/** Sub-step 3: confirm and edit the resolved hand, then deal. */
+function TableStep({
+  count,
+  preset,
+  config,
+  names,
+  onConfigChange,
+  onRename,
+  onEditCount,
+  onDeal,
+}: {
+  count: number;
+  preset: PresetId;
+  config: RoleConfig;
+  names: readonly string[];
+  onConfigChange: (config: RoleConfig) => void;
+  onRename: (index: number, name: string) => void;
+  onEditCount: () => void;
+  onDeal: () => void;
+}) {
+  const upper = maxWolves(count);
+  const specials =
+    config.werewolves + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0);
+  const town = count - config.werewolves;
+  const configValid =
+    config.werewolves >= 1 && config.werewolves < town && specials <= count;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <h3 style={headingStyle}>La mesa</h3>
+        <p style={subtitleStyle}>
+          Confirmá la mano y anotá a cada gato. Después, a repartir.
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          overflowY: "auto",
+          paddingRight: "2px",
+        }}
+      >
+        <CountLabel count={count} onEdit={onEditCount} />
+
+        <RolePicker
+          config={config}
+          upper={upper}
+          showComingSoon={preset === "custom"}
+          onChange={onConfigChange}
+        />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {names.map((name, index) => (
+            <SeatRow
+              key={index}
+              index={index}
+              name={name}
+              onRename={(value) => onRename(index, value)}
+            />
+          ))}
         </div>
-        <PrimaryButton onClick={onDeal} disabled={!canDeal}>
+      </div>
+
+      <div style={{ marginTop: "auto" }}>
+        <PrimaryButton onClick={onDeal} disabled={!configValid} style={{ width: "100%" }}>
           Repartir los roles
         </PrimaryButton>
       </div>
@@ -130,16 +411,54 @@ export function LobbyView({
   );
 }
 
+/** The player-count reminder with a control to go back and change it. */
+function CountLabel({ count, onEdit }: { count: number; onEdit: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="Cambiar la cantidad de gatos"
+      onClick={onEdit}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px",
+        padding: "10px 14px",
+        background: "rgba(217,164,76,.04)",
+        border: "1px dashed #3a3833",
+        color: "var(--lyk-ink)",
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
+      <span style={{ fontSize: "12.5px", color: "var(--lyk-muted-2)" }}>
+        {count} gatos · ¿Es la cantidad correcta?
+      </span>
+      <span
+        style={{
+          fontSize: "10px",
+          letterSpacing: ".18em",
+          textTransform: "uppercase",
+          color: "var(--lyk-gold)",
+        }}
+      >
+        Cambiar
+      </span>
+    </button>
+  );
+}
+
 function RolePicker({
-  roleConfig,
-  playerCount,
+  config,
+  upper,
+  showComingSoon,
   onChange,
 }: {
-  roleConfig: RoleConfig;
-  playerCount: number;
-  onChange: (roleConfig: RoleConfig) => void;
+  config: RoleConfig;
+  upper: number;
+  showComingSoon: boolean;
+  onChange: (config: RoleConfig) => void;
 }) {
-  const upper = maxWolves(playerCount);
   return (
     <div
       style={{
@@ -172,8 +491,8 @@ function RolePicker({
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <StepButton
             label="Menos Lykoi"
-            disabled={roleConfig.werewolves <= 1}
-            onClick={() => onChange({ ...roleConfig, werewolves: roleConfig.werewolves - 1 })}
+            disabled={config.werewolves <= 1}
+            onClick={() => onChange({ ...config, werewolves: config.werewolves - 1 })}
           >
             −
           </StepButton>
@@ -187,12 +506,12 @@ function RolePicker({
               textAlign: "center",
             }}
           >
-            {roleConfig.werewolves}
+            {config.werewolves}
           </span>
           <StepButton
             label="Más Lykoi"
-            disabled={roleConfig.werewolves >= upper}
-            onClick={() => onChange({ ...roleConfig, werewolves: roleConfig.werewolves + 1 })}
+            disabled={config.werewolves >= upper}
+            onClick={() => onChange({ ...config, werewolves: config.werewolves + 1 })}
           >
             +
           </StepButton>
@@ -201,32 +520,39 @@ function RolePicker({
 
       <RoleToggle
         label="Vidente"
-        active={roleConfig.seer}
-        onToggle={() => onChange({ ...roleConfig, seer: !roleConfig.seer })}
+        active={config.seer}
+        onToggle={() => onChange({ ...config, seer: !config.seer })}
       />
       <RoleToggle
         label="Guardián del Umbral"
-        active={roleConfig.guardian}
-        onToggle={() => onChange({ ...roleConfig, guardian: !roleConfig.guardian })}
+        active={config.guardian}
+        onToggle={() => onChange({ ...config, guardian: !config.guardian })}
       />
+
+      {showComingSoon
+        ? COMING_SOON_ROLES.map((role) => <RoleToggle key={role} label={role} comingSoon />)
+        : null}
     </div>
   );
 }
 
 function RoleToggle({
   label,
-  active,
+  active = false,
+  comingSoon = false,
   onToggle,
 }: {
   label: string;
-  active: boolean;
-  onToggle: () => void;
+  active?: boolean;
+  comingSoon?: boolean;
+  onToggle?: () => void;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
-      aria-pressed={active}
+      aria-pressed={comingSoon ? undefined : active}
+      disabled={comingSoon}
       onClick={onToggle}
       style={{
         display: "flex",
@@ -239,7 +565,8 @@ function RoleToggle({
         color: active ? "var(--lyk-gold)" : "var(--lyk-muted-2)",
         fontFamily: "var(--lyk-sans)",
         fontSize: "12.5px",
-        cursor: "pointer",
+        opacity: comingSoon ? 0.42 : 1,
+        cursor: comingSoon ? "not-allowed" : "pointer",
         transition: "border-color .2s, color .2s, background .2s",
       }}
     >
@@ -251,7 +578,7 @@ function RoleToggle({
           textTransform: "uppercase",
         }}
       >
-        {active ? "En juego" : "Fuera"}
+        {comingSoon ? "Próximamente" : active ? "En juego" : "Fuera"}
       </span>
     </button>
   );
@@ -275,12 +602,12 @@ function StepButton({
       disabled={disabled}
       onClick={onClick}
       style={{
-        width: "30px",
-        height: "30px",
+        width: "40px",
+        height: "40px",
         background: "none",
         border: "1px solid #3a3833",
         color: disabled ? "#4a463f" : "var(--lyk-ink)",
-        fontSize: "18px",
+        fontSize: "22px",
         lineHeight: 1,
         cursor: disabled ? "not-allowed" : "pointer",
       }}
@@ -293,15 +620,11 @@ function StepButton({
 function SeatRow({
   index,
   name,
-  canRemove,
   onRename,
-  onRemove,
 }: {
   index: number;
   name: string;
-  canRemove: boolean;
   onRename: (value: string) => void;
-  onRemove: () => void;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -309,7 +632,7 @@ function SeatRow({
       <input
         aria-label={`Nombre del gato ${index + 1}`}
         value={name}
-        placeholder={`Gato ${index + 1}`}
+        placeholder={defaultName(index)}
         onChange={(event) => onRename(event.target.value)}
         style={{
           flex: 1,
@@ -322,25 +645,6 @@ function SeatRow({
           fontSize: "13px",
         }}
       />
-      <button
-        type="button"
-        aria-label={`Quitar a ${name || `gato ${index + 1}`}`}
-        disabled={!canRemove}
-        onClick={onRemove}
-        style={{
-          width: "30px",
-          height: "34px",
-          flex: "none",
-          background: "none",
-          border: "1px solid #23252a",
-          color: canRemove ? "var(--lyk-muted-2)" : "#3a3833",
-          fontSize: "16px",
-          lineHeight: 1,
-          cursor: canRemove ? "pointer" : "not-allowed",
-        }}
-      >
-        ×
-      </button>
     </div>
   );
 }

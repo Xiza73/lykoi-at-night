@@ -10,7 +10,6 @@ import type { RoleConfig, Seat } from "../domain/game/player";
 import { createShuffle, type Shuffle } from "../domain/game/shuffle";
 import { PhoneHeader } from "./components/PhoneHeader";
 import { LobbyView } from "./views/LobbyView";
-import { maxWolves } from "./roleLabels";
 import { RevealView } from "./views/RevealView";
 import { NightView, type NightStep } from "./views/NightView";
 import { DayView } from "./views/DayView";
@@ -28,13 +27,6 @@ interface GameScreenProps {
   shuffle?: Shuffle;
 }
 
-const DEFAULT_NAMES = ["Ceniza", "Morriña", "Almendra", "Tuerto"] as const;
-const DEFAULT_ROLE_CONFIG: RoleConfig = {
-  werewolves: 1,
-  seer: true,
-  guardian: true,
-};
-
 /**
  * The production shuffle, built once at module load. `createShuffle` is pure —
  * it only closes over the RNG and defers Math.random until a shuffle actually
@@ -48,8 +40,6 @@ const defaultShuffle = createShuffle(() => Math.random());
  * domain functions, keeping this container a thin state machine over pure logic.
  */
 export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
-  const [names, setNames] = useState<string[]>([...DEFAULT_NAMES]);
-  const [roleConfig, setRoleConfig] = useState<RoleConfig>(DEFAULT_ROLE_CONFIG);
   const [step, setStep] = useState<Step>("lobby");
   const [revealIndex, setRevealIndex] = useState(0);
   const [game, setGame] = useState<Game | null>(null);
@@ -85,28 +75,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setDawnVictimName(null);
   };
 
-  const handleAddSeat = () => setNames((prev) => [...prev, ""]);
-
-  const handleRemoveSeat = (index: number) =>
-    setNames((prev) => prev.filter((_, i) => i !== index));
-
-  const handleRenameSeat = (index: number, name: string) =>
-    setNames((prev) => prev.map((value, i) => (i === index ? name : value)));
-
-  const handleRoleConfigChange = (next: RoleConfig) => {
-    // Keep the werewolf count within the valid band as the roster changes.
-    const upper = maxWolves(names.length);
-    setRoleConfig({
-      ...next,
-      werewolves: Math.min(Math.max(1, next.werewolves), upper),
-    });
-  };
-
-  const handleDeal = () => {
-    const seats: Seat[] = names.map((name, index) => ({
-      id: `p${index + 1}`,
-      name: name.trim() || `Gato ${index + 1}`,
-    }));
+  const handleDeal = (seats: readonly Seat[], roleConfig: RoleConfig) => {
     // createShuffle is the single randomness boundary; the domain deals purely.
     const dealt = createGame(seats, roleConfig, shuffle);
     setGame(dealt);
@@ -242,17 +211,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
 
   function renderStep() {
     if (step === "lobby" || game === null) {
-      return (
-        <LobbyView
-          names={names}
-          roleConfig={roleConfig}
-          onAddSeat={handleAddSeat}
-          onRemoveSeat={handleRemoveSeat}
-          onRenameSeat={handleRenameSeat}
-          onRoleConfigChange={handleRoleConfigChange}
-          onDeal={handleDeal}
-        />
-      );
+      return <LobbyView onDeal={handleDeal} />;
     }
 
     if (step === "reveal") {

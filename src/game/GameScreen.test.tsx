@@ -13,18 +13,44 @@ const identityShuffle: Shuffle = (items) => [...items];
 
 const NAMES = ["Ana", "Beto", "Caro", "Dario", "Eva", "Fabi"] as const;
 
-/** Fills the lobby with the six names and deals, reaching the reveal step. */
-async function fillLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
-  // The lobby starts with 4 seats; add two to reach six.
-  await user.click(screen.getByRole("button", { name: /añadir gato/i }));
-  await user.click(screen.getByRole("button", { name: /añadir gato/i }));
+/**
+ * Walks the wizard's count sub-step: nudges the stepper to `target` (from the
+ * default of six) and advances to the preset picker.
+ */
+async function setCount(
+  user: ReturnType<typeof userEvent.setup>,
+  target: number,
+) {
+  const delta = target - 6;
+  const label = delta >= 0 ? /más gatos/i : /menos gatos/i;
+  for (let i = 0; i < Math.abs(delta); i += 1) {
+    await user.click(screen.getByRole("button", { name: label }));
+  }
+  await user.click(screen.getByRole("button", { name: /siguiente/i }));
+}
 
-  for (let i = 0; i < NAMES.length; i += 1) {
+/** Renames the prefilled roster inputs to the given names. */
+async function renameSeats(
+  user: ReturnType<typeof userEvent.setup>,
+  seatNames: readonly string[],
+) {
+  for (let i = 0; i < seatNames.length; i += 1) {
     const input = screen.getByLabelText(`Nombre del gato ${i + 1}`);
     await user.clear(input);
-    await user.type(input, NAMES[i]);
+    await user.type(input, seatNames[i]);
   }
+}
 
+/**
+ * Drives the wizard to a dealt six-player Clásico game: count 6 -> Clásico
+ * preset (1 Lykoi, Vidente, Guardián) -> rename seats -> deal. With the identity
+ * shuffle the roles fall in seat order: Ana (p1) wolf, Beto (p2) seer, Caro (p3)
+ * guardian, Dario/Eva/Fabi villagers.
+ */
+async function fillLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^clásico$/i }));
+  await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
@@ -42,25 +68,20 @@ async function walkReveal(user: ReturnType<typeof userEvent.setup>) {
 /**
  * Fills a 5-seat lobby with a two-wolf, no-special config and deals. With the
  * identity shuffle the roles fall in seat order, so p1/p2 (Ana, Beto) are the
- * werewolves and p3/p4/p5 (Caro, Dario, Eva) are townsfolk.
+ * werewolves and p3/p4/p5 (Caro, Dario, Eva) are townsfolk. Uses the Básico
+ * preset (no Vidente / Guardián) at count 5, then bumps to two Lykoi.
  */
 async function fillTwoWolfLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
-  // The lobby starts with 4 seats; add one to reach five.
-  await user.click(screen.getByRole("button", { name: /añadir gato/i }));
+  await setCount(user, 5);
+  await user.click(screen.getByRole("button", { name: /^básico$/i }));
 
   const packNames = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
-  for (let i = 0; i < packNames.length; i += 1) {
-    const input = screen.getByLabelText(`Nombre del gato ${i + 1}`);
-    await user.clear(input);
-    await user.type(input, packNames[i]);
-  }
+  await renameSeats(user, packNames);
 
-  // Two Lykoi, no Vidente, no Guardián.
+  // Básico starts at one Lykoi; bump to two.
   await user.click(screen.getByRole("button", { name: /más lykoi/i }));
-  await user.click(screen.getByRole("button", { name: /^vidente$/i }));
-  await user.click(screen.getByRole("button", { name: /guardián del umbral/i }));
 
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
