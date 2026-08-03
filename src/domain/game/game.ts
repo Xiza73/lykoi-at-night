@@ -37,6 +37,20 @@ export interface Game {
    * faction: each lover still wins with their own camp.
    */
   readonly lovers: readonly [PlayerId, PlayerId] | null;
+  /**
+   * Whether La Bruja's one-shot LIFE potion is still available. It saves the
+   * wolves' victim on the night she reserves it, but is spent ONLY if it
+   * actually saved someone — if she reserves it and nobody would have died (the
+   * wolves killed no one, or the Curandero already warded the victim) it returns
+   * for a later night. Starts true.
+   */
+  readonly witchHeal: boolean;
+  /**
+   * Whether La Bruja's one-shot POISON potion is still available. It kills the
+   * cat she names, bypassing the Curandero's ward entirely, and is spent when
+   * she uses it. Starts true.
+   */
+  readonly witchPoison: boolean;
 }
 
 /** Creates a new game: deals roles and opens on the first night. */
@@ -55,6 +69,8 @@ export function createGame(
     pendingHunter: null,
     lastWarded: null,
     lovers: null,
+    witchHeal: true,
+    witchPoison: true,
   };
 }
 
@@ -161,12 +177,33 @@ export function investigate(game: Game, targetId: PlayerId): Alignment | null {
  * guardian ward never saves the shot target) and OPTIONAL (a null, or
  * already-dead, `hunterShotId` means he takes nobody). The pre-commit is ignored
  * entirely unless the hunter is the one the pack kills tonight.
+ *
+ * La Bruja acts through the grouped `witch` param, and only while a LIVING witch
+ * holds the potion (an absent/dead witch makes the params a no-op):
+ * - `heal` reserves her one-shot LIFE potion BLIND (she never sees the victim).
+ *   It spares whoever the pack would kill this night, but is spent ONLY if it
+ *   actually saved someone: if there is no victim, or the ward already saved
+ *   them, the potion returns (`witchHeal` stays true). A healed Cazador did not
+ *   die, so his pre-committed shot never fires.
+ * - `poisonTargetId` uses her one-shot POISON potion on a living cat. The poison
+ *   is UNSTOPPABLE — it bypasses the Curandero's ward entirely — and independent
+ *   of the wolves' victim. Unlike the blind heal (which returns if it saved no
+ *   one), the poison is a conscious, targeted choice, so it is spent whenever she
+ *   casts it — even at an already-dead or invalid target. Poisoning the SAME cat
+ *   the heal just saved overrides the heal: that cat still dies, though the heal
+ *   is still counted as spent (it did save them from the wolves' attack). The
+ *   poison is NOT the pack's attack, so poisoning the Cazador never fires his
+ *   pre-committed shot — that shot is a reflex to the wolves' kill alone.
  */
 export function resolveNight(
   game: Game,
   wolfTargetId: PlayerId | null,
   protectedId: PlayerId | null,
   hunterShotId: PlayerId | null = null,
+  witch: { heal: boolean; poisonTargetId: PlayerId | null } = {
+    heal: false,
+    poisonTargetId: null,
+  },
 ): Game {
   if (game.phase !== "night" || game.status === "ended") {
     return game;
@@ -174,7 +211,7 @@ export function resolveNight(
   // The living Curandero, if any. He watches over one cat; the ward is only
   // valid when he watches someone OTHER than himself and NOT the same cat he
   // warded last night. An illegal or absent ward protects nobody and resets the
-  // streak (lastWarded -> null). A future Bruja's poison should bypass the ward.
+  // streak (lastWarded -> null). La Bruja's poison bypasses the ward (below).
   const guardian = game.players.find(
     (player) => player.alive && player.role === "guardian",
   );
@@ -190,7 +227,20 @@ export function resolveNight(
       : (game.players.find((player) => player.id === wolfTargetId) ?? null);
   const saved =
     guardian != null && effectiveWard !== null && effectiveWard === wolfTargetId;
-  const dies = victim !== null && victim.alive && !saved;
+  // All of La Bruja's effects require a LIVING witch; without one the params are
+  // ignored and the potion flags carry over unchanged.
+  const witchAlive =
+    game.players.find((player) => player.alive && player.role === "witch") !=
+    null;
+  // The wolves' victim would die unless the ward saved them. La Bruja's blind
+  // heal only bites (and is only spent) when there is such a death to prevent.
+  const victimWouldDie = victim !== null && victim.alive && !saved;
+  const healApplies =
+    witchAlive && witch.heal && game.witchHeal && victimWouldDie;
+  const witchHeal = healApplies ? false : game.witchHeal;
+  // The victim dies unless the ward or the heal saved them. `dies` already folds
+  // the heal in, so a healed Cazador (dies === false) never fires his shot.
+  const dies = victimWouldDie && !healApplies;
   let players = dies
     ? game.players.map((p) => (p.id === victim.id ? eliminate(p) : p))
     : game.players;
@@ -202,13 +252,30 @@ export function resolveNight(
       p.id === hunterShotId && p.alive ? eliminate(p) : p,
     );
   }
-  // The lover bond runs AFTER both the pack's victim and the Cazador's shot, so
-  // a lover among either death drags their partner down before the win is scored.
+  // La Bruja's poison: it kills the named living cat regardless of the ward, and
+  // independently of the wolves' victim. It is spent whenever she casts it.
+  let witchPoison = game.witchPoison;
+  if (witchAlive && witch.poisonTargetId !== null && game.witchPoison) {
+    players = players.map((p) =>
+      p.id === witch.poisonTargetId && p.alive ? eliminate(p) : p,
+    );
+    witchPoison = false;
+  }
+  // The lover bond runs AFTER every direct death (the pack's victim, the
+  // Cazador's shot and La Bruja's poison), so a lover among them drags their
+  // partner down before the win is scored.
   players = applyLoverBond(players, game.lovers);
-  // Record this night's effective ward so the next night can reject a repeat.
-  // Threaded into the single resolved snapshot so every return path below (ended,
-  // hunter-shot, or advanced to day) carries it.
-  const resolved = resolve({ ...game, players, lastWarded: effectiveWard });
+  // Record this night's effective ward and the updated potion flags so the next
+  // night can reject a ward repeat and knows which potions remain. Threaded into
+  // the single resolved snapshot so every return path below (ended, hunter-shot,
+  // or advanced to day) carries them.
+  const resolved = resolve({
+    ...game,
+    players,
+    lastWarded: effectiveWard,
+    witchHeal,
+    witchPoison,
+  });
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
 }
 

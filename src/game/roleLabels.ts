@@ -62,6 +62,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-gold)",
         desc: "La primera noche enlaza a dos gatos enamorados. Si uno cae, el otro lo sigue.",
       };
+    case "witch":
+      return {
+        name: "La Bruja del Callejón",
+        faction: "Vecindario",
+        tone: "var(--lyk-gold)",
+        desc: "Guardás dos frascos, uno por partida: una poción de vida que salva a quien la manada marque, y un veneno que mata aunque lo estén curando.",
+      };
     case "villager":
       return {
         name: "Gato Doméstico",

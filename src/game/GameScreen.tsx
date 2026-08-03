@@ -70,20 +70,25 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // Cupido's running two-cat selection this turn (0, 1 or 2 ids). He confirms
   // only at exactly two; a third tap replaces the oldest pick.
   const [cupidPick, setCupidPick] = useState<readonly string[]>([]);
+  // La Bruja's per-night choices, set on her turn and HELD (like the ward and the
+  // Cazador's shot) until resolveNight. The potion-availability flags themselves
+  // live in `game` and persist across nights; these only carry this night's use.
+  // `healReserved` reserves the blind life potion; `witchPoisonId` is her poison
+  // target (null = no envenenar). Both reset in armNight.
+  const [healReserved, setHealReserved] = useState(false);
+  const [witchPoisonId, setWitchPoisonId] = useState<string | null>(null);
   // The lovers-reveal pass runs, night 1 only, AFTER the main seat pass once a
   // Cupido has pledged. This index walks the living seats a second time; the
   // pack's resolved victim is stashed so resolution happens AFTER the reveal.
   const [revealSeatIndex, setRevealSeatIndex] = useState(0);
   const [pendingVictimId, setPendingVictimId] = useState<string | null>(null);
   const [pendingSpared, setPendingSpared] = useState(false);
-  // Snapshot taken the moment resolveNight runs: the name of whoever the night
-  // claimed, or null if the umbral held. Drives the dawn message even after the
+  // Snapshot taken the moment resolveNight runs: every cat the night claimed, in
+  // narration order — the wolves' victim first when there was one, then any other
+  // newly-dead by seat order (the Cazador's shot, La Bruja's poison and/or a
+  // chained lover). Empty when nobody fell. Drives the dawn message even after the
   // phase has advanced to day.
-  const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
-  // Every OTHER cat the night claimed alongside the pack's victim, in seat order
-  // (0, 1 or 2 names): the Cazador's pre-committed shot and/or a lover chained by
-  // the bond. Empty on an ordinary single-death (or no-death) night.
-  const [dawnOthersNames, setDawnOthersNames] = useState<readonly string[]>([]);
+  const [dawnFallenNames, setDawnFallenNames] = useState<readonly string[]>([]);
   // True when a double tie in the pack's vote spared the night (nobody chosen).
   const [nightSpared, setNightSpared] = useState(false);
   // Day sub-flow state, mirroring the night machine. The town first DISCUSSES,
@@ -123,11 +128,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setWolfTargetId(null);
     setSeerTargetId(null);
     setCupidPick([]);
+    setHealReserved(false);
+    setWitchPoisonId(null);
     setRevealSeatIndex(0);
     setPendingVictimId(null);
     setPendingSpared(false);
-    setDawnVictimName(null);
-    setDawnOthersNames([]);
+    setDawnFallenNames([]);
     setNightSpared(false);
   };
 
@@ -253,9 +259,14 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       return;
     }
     // resolveNight is the ONLY night death path: it kills (or spares) the pack's
-    // victim, fires the Cazador's pre-committed shot if he was the victim, and
-    // breaks to the next day — or ends the game. Randomness never enters.
-    const resolved = resolveNight(game, victimId, protectedId, hunterShotId);
+    // victim, fires the Cazador's pre-committed shot if he was the victim, applies
+    // La Bruja's blind heal / unstoppable poison, and breaks to the next day — or
+    // ends the game. Randomness never enters. The potion-availability flags ride
+    // back on the returned game (persisted across nights).
+    const resolved = resolveNight(game, victimId, protectedId, hunterShotId, {
+      heal: healReserved,
+      poisonTargetId: witchPoisonId,
+    });
     // `died(id)` confirms a player was alive before and is dead after — robust to
     // a null id or an already-dead target.
     const died = (id: string | null): boolean => {
@@ -271,18 +282,20 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
         !after.alive
       );
     };
-    // The primary loss is ALWAYS the pack's victim (named as the cat who "no
-    // volvió al callejón"), never a seat-order pick — the Cazador's shot and the
-    // lover bond only ever produce SECONDARY deaths. `others` is every OTHER cat
-    // who newly fell tonight (the shot target and/or a chained lover), gathered
-    // in SEAT ORDER by diffing alive-before vs alive-after, minus the primary.
+    // The fallen, in narration order: the wolves' victim leads WHEN there was one
+    // (named as the cat who "no volvió al callejón"), then every OTHER cat who
+    // newly fell tonight — the Cazador's shot, La Bruja's INDEPENDENT poison, and
+    // /or a chained lover — gathered in SEAT ORDER by diffing alive-before vs
+    // alive-after. When the pack killed nobody but a poison (or chain) still fell
+    // a cat, the list simply leads with that first newly-dead cat.
     const victim = game.players.find((p) => p.id === victimId);
-    const dawnVictim = died(victimId) ? (victim?.name ?? null) : null;
+    const victimFell = died(victimId);
     const others = resolved.players
       .filter((p) => p.id !== victimId && died(p.id))
       .map((p) => p.name);
-    setDawnVictimName(dawnVictim);
-    setDawnOthersNames(others);
+    const fallen =
+      victimFell && victim ? [victim.name, ...others] : others;
+    setDawnFallenNames(fallen);
     setNightSpared(spared);
     setGame(resolved);
     setStep("night");
@@ -598,8 +611,9 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           seerTargetId={seerTargetId}
           wolfTargetId={wolfTargetId}
           cupidPick={cupidPick}
-          victimName={dawnVictimName}
-          othersNames={dawnOthersNames}
+          healReserved={healReserved}
+          witchPoisonId={witchPoisonId}
+          fallenNames={dawnFallenNames}
           spared={nightSpared}
           onOpenGate={handleOpenGate}
           onSelectProtected={setProtectedId}
@@ -607,6 +621,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           onSelectSeerTarget={setSeerTargetId}
           onSelectWolfTarget={setWolfTargetId}
           onToggleCupidPick={handleToggleCupidPick}
+          onToggleHealReserve={() => setHealReserved((prev) => !prev)}
+          onSelectWitchPoison={setWitchPoisonId}
           onConfirmAction={handleConfirmAction}
           onRevealContinue={handleRevealContinue}
           onDawnContinue={handleDawnContinue}

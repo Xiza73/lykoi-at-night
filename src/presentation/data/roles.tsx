@@ -119,6 +119,23 @@ export const roles: Role[] = [
     ),
   },
   {
+    id: "bruja",
+    name: "La Bruja del Callejón",
+    faction: "Vecindario",
+    description:
+      "Guarda dos frascos para toda la partida: una poción que revive a quien la manada marque, y un veneno que mata aunque lo estén curando.",
+    implemented: true,
+    art: (
+      <>
+        <path d="M12 2 L15 8 H9 z" />
+        <path d="M6 8 h12 l-2 6 h-8 z" />
+        <path d="M7 14 q5 4 10 0 l1 5 h-12 z" />
+        <path d="M9 17.5 q3 1.5 6 0" opacity=".5" />
+        <path d="M12 8 v6" opacity=".45" />
+      </>
+    ),
+  },
+  {
     id: "domestico",
     name: "Gato Doméstico",
     faction: "Vecindario",

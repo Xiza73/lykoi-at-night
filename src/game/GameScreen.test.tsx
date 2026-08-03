@@ -126,6 +126,23 @@ async function openGate(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
+ * Fills a six-seat Bruja lobby via Personalizado (Clásico + the La Bruja del
+ * Callejón toggle) and deals. With the identity shuffle the roles fall in seat
+ * order (push order: wolf, seer, guardian, witch, then villagers): Ana (p1) wolf,
+ * Beto (p2) seer, Caro (p3) guardian, Dario (p4) the Bruja, Eva/Fabi villagers.
+ */
+async function fillWitchLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Personalizado starts from the Clásico hand; add La Bruja del Callejón.
+  await user.click(
+    screen.getByRole("button", { name: /^la bruja del callejón$/i }),
+  );
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
+/**
  * Fills a six-seat Cazador + Cupido lobby via Personalizado (Clásico + the
  * Cazador de Sombras and Cupido del Callejón toggles) and deals. With the
  * identity shuffle the roles fall in seat order (push order:
@@ -645,15 +662,17 @@ describe("GameScreen", () => {
       await user.click(screen.getByRole("button", { name: /^listo$/i }));
     }
 
-    // No interactive revenge step: dawn reports BOTH the Cazador and his shot,
-    // naming DARIO (the fallen Cazador) as the one who "no volvió" and BETO (his
-    // shot, though seated earlier) as the one carried off "consigo". Seat-order
-    // naming would invert these — this assertion catches that inversion.
+    // No interactive revenge step: dawn lists BOTH the Cazador and his shot in the
+    // neutral form, naming DARIO (the fallen Cazador, the wolves' victim) first and
+    // BETO (his shot, though seated earlier) as also fallen. Seat-order naming
+    // would invert these — this assertion catches that inversion.
     expect(
       screen.queryByRole("heading", { name: /el cazador de sombras cae/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/dario no volvió al callejón, y se llevó consigo a beto/i),
+      screen.getByText(
+        /amanece\. dario no volvió al callejón\. beto tampoco\./i,
+      ),
     ).toBeInTheDocument();
 
     // Into the day's discussion board — both are fallen tiles.
@@ -969,9 +988,12 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Dawn: the pack killed Eva, and the lover bond dragged Fabi down with her.
+    // Dawn: the pack killed Eva, and the lover bond dragged Fabi down with her —
+    // listed in the neutral form (Eva first as the wolves' victim, then Fabi).
     expect(
-      screen.getByText(/eva no volvió al callejón, y se llevó consigo a fabi/i),
+      screen.getByText(
+        /amanece\. eva no volvió al callejón\. fabi tampoco\./i,
+      ),
     ).toBeInTheDocument();
 
     // Into the day's board — both lovers are fallen tiles.
@@ -1087,11 +1109,11 @@ describe("GameScreen", () => {
       await user.click(screen.getByRole("button", { name: /^listo$/i }));
     }
 
-    // Dawn: Dario is the primary loss (the wolves' victim). Both his shot (Fabi)
-    // and his lover (Beto) are carried off "consigo", named in seat order.
+    // Dawn: Dario leads as the wolves' victim. Both his shot (Fabi) and his lover
+    // (Beto) are listed as also fallen, in seat order, in the neutral form.
     expect(
       screen.getByText(
-        /dario no volvió al callejón, y se llevó consigo a beto y fabi/i,
+        /amanece\. dario no volvió al callejón\. beto y fabi tampoco\./i,
       ),
     ).toBeInTheDocument();
 
@@ -1103,5 +1125,178 @@ describe("GameScreen", () => {
     expect(screen.getByLabelText(/dario \(caído\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/beto \(caído\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/fabi \(caído\)/i)).toBeInTheDocument();
+  });
+
+  it("the Bruja reserves her blind heal: the pack's victim is saved and the potion is spent", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillWitchLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1: Ana (wolf) votes Eva, Beto (seer) reads Fabi, Caro (guardian) wards
+    // nobody, Dario (the Bruja) reserves the blind life potion (no poison), Eva and
+    // Fabi pass. The heal saves the pack's target — nobody falls.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Bruja): reserves the life potion, poisons no one.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos la bruja del callejón/i }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /reservar la poción de vida/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seats 5-6 — Eva, Fabi (villagers): plain pass.
+    for (let i = 0; i < 2; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Dawn: the blind heal saved the pack's victim — no death.
+    expect(screen.getByText(/amaneció sin bajas/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    // Day 1 — skip the lynch straight into night 2.
+    await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
+
+    // Night 2 — walk to the Bruja's seat. Ana votes Eva, Beto reads Fabi, Caro
+    // wards nobody.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Bruja): the life potion is SPENT, so its reserve toggle
+    // is gone; only the poison remains available.
+    await openGate(user);
+    expect(
+      screen.queryByRole("button", { name: /reservar la poción de vida/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /envenenar a eva/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("the Bruja's poison kills through the Curandero's ward and dawn names the fallen", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillWitchLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1: Ana (wolf) votes Eva, Beto (seer) reads Fabi, Caro (guardian) wards
+    // EVA (which stops the wolves' attack on her), Dario (the Bruja) poisons Eva —
+    // the poison ignores the ward, so Eva still dies. Eva/Fabi pass.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards Eva
+    await user.click(screen.getByRole("button", { name: /curar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Bruja): no heal, poisons Eva.
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /envenenar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    for (let i = 0; i < 2; i += 1) {
+      await openGate(user); // Eva, Fabi (villagers)
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Dawn: despite the ward, the poison felled Eva — named in the neutral form.
+    expect(
+      screen.getByText(/^amanece\. eva no volvió al callejón\.$/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(screen.getByLabelText(/eva \(caído\)/i)).toBeInTheDocument();
+  });
+
+  it("the Bruja has no night action once both potions are spent", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillWitchLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1: Ana (wolf) votes Eva, Beto (seer) reads Ana, Caro (guardian) wards
+    // nobody, Dario (the Bruja) reserves the heal (saving Eva) AND poisons Fabi.
+    // Eva/Fabi pass. Both potions are spent this night.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a ana/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Bruja): reserve heal AND poison Fabi.
+    await openGate(user);
+    await user.click(
+      screen.getByRole("button", { name: /reservar la poción de vida/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /envenenar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    for (let i = 0; i < 2; i += 1) {
+      await openGate(user); // Eva, Fabi (villagers)
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Dawn: Eva was healed; Fabi fell to the poison (the only death).
+    expect(
+      screen.getByText(/^amanece\. fabi no volvió al callejón\.$/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    // Day 1 — skip the lynch straight into night 2.
+    await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
+
+    // Night 2 — walk to the Bruja's seat (Fabi is dead; living seats: Ana, Beto,
+    // Caro, Dario, Eva). Ana votes Eva, Beto reads Ana, Caro wards nobody.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a ana/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Bruja) with BOTH potions spent: the plain sleep screen,
+    // no reserve toggle and no poison targets.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos la bruja del callejón/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /reservar la poción de vida/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /envenenar a/i }),
+    ).not.toBeInTheDocument();
   });
 });

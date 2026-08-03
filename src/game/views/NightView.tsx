@@ -56,14 +56,17 @@ interface NightViewProps {
    * 2). He confirms only at exactly two. Empty for every other role.
    */
   cupidPick: readonly string[];
-  /** The primary fallen at dawn (the wolves' victim), or null if none fell. */
-  victimName: string | null;
+  /** Whether La Bruja reserved her blind life potion this night. */
+  healReserved: boolean;
+  /** La Bruja's poison target this night, or null for "no envenenar". */
+  witchPoisonId: string | null;
   /**
-   * Every OTHER cat the night claimed alongside the victim, in seat order (0, 1
-   * or 2 names): the Cazador's pre-committed shot and/or a lover chained by the
-   * bond.
+   * Every cat the night claimed, in narration order: the wolves' victim first
+   * when there was one, then any other newly-dead by seat order (the Cazador's
+   * shot, La Bruja's poison and/or a lover chained by the bond). Empty when the
+   * night claimed nobody.
    */
-  othersNames: readonly string[];
+  fallenNames: readonly string[];
   /** Whether the double-tie spared the night (nobody was chosen). */
   spared: boolean;
   onOpenGate: () => void;
@@ -73,6 +76,10 @@ interface NightViewProps {
   onSelectWolfTarget: (playerId: string) => void;
   /** Toggles a candidate in Cupido's two-cat selection (tap to add / remove). */
   onToggleCupidPick: (playerId: string) => void;
+  /** Toggles La Bruja's blind life-potion reservation for this night. */
+  onToggleHealReserve: () => void;
+  /** Sets La Bruja's poison target this night, or null to poison nobody. */
+  onSelectWitchPoison: (playerId: string | null) => void;
   /** Confirms the current player's action and passes on (or resolves). */
   onConfirmAction: () => void;
   /** Advances the lovers-reveal pass to the next living seat (or resolves). */
@@ -99,8 +106,9 @@ export function NightView({
   seerTargetId,
   wolfTargetId,
   cupidPick,
-  victimName,
-  othersNames,
+  healReserved,
+  witchPoisonId,
+  fallenNames,
   spared,
   onOpenGate,
   onSelectProtected,
@@ -108,18 +116,15 @@ export function NightView({
   onSelectSeerTarget,
   onSelectWolfTarget,
   onToggleCupidPick,
+  onToggleHealReserve,
+  onSelectWitchPoison,
   onConfirmAction,
   onRevealContinue,
   onDawnContinue,
 }: NightViewProps) {
   if (subStep === "dawn") {
     return (
-      <Dawn
-        victimName={victimName}
-        othersNames={othersNames}
-        spared={spared}
-        onContinue={onDawnContinue}
-      />
+      <Dawn fallenNames={fallenNames} spared={spared} onContinue={onDawnContinue} />
     );
   }
 
@@ -186,11 +191,15 @@ export function NightView({
       seerTargetId={seerTargetId}
       wolfTargetId={wolfTargetId}
       cupidPick={cupidPick}
+      healReserved={healReserved}
+      witchPoisonId={witchPoisonId}
       onSelectProtected={onSelectProtected}
       onSelectHunterShot={onSelectHunterShot}
       onSelectSeerTarget={onSelectSeerTarget}
       onSelectWolfTarget={onSelectWolfTarget}
       onToggleCupidPick={onToggleCupidPick}
+      onToggleHealReserve={onToggleHealReserve}
+      onSelectWitchPoison={onSelectWitchPoison}
       onConfirmAction={onConfirmAction}
     />
   );
@@ -208,11 +217,15 @@ function ActionTurn({
   seerTargetId,
   wolfTargetId,
   cupidPick,
+  healReserved,
+  witchPoisonId,
   onSelectProtected,
   onSelectHunterShot,
   onSelectSeerTarget,
   onSelectWolfTarget,
   onToggleCupidPick,
+  onToggleHealReserve,
+  onSelectWitchPoison,
   onConfirmAction,
 }: {
   game: Game;
@@ -225,11 +238,15 @@ function ActionTurn({
   seerTargetId: string | null;
   wolfTargetId: string | null;
   cupidPick: readonly string[];
+  healReserved: boolean;
+  witchPoisonId: string | null;
   onSelectProtected: (playerId: string | null) => void;
   onSelectHunterShot: (playerId: string | null) => void;
   onSelectSeerTarget: (playerId: string) => void;
   onSelectWolfTarget: (playerId: string) => void;
   onToggleCupidPick: (playerId: string) => void;
+  onToggleHealReserve: () => void;
+  onSelectWitchPoison: (playerId: string | null) => void;
   onConfirmAction: () => void;
 }) {
   const living = game.players.filter((player) => player.alive);
@@ -432,7 +449,57 @@ function ActionTurn({
     );
   }
 
-  // villager (and Cupido on later nights): no night action.
+  // La Bruja acts while she still holds at least one potion. The flags live in
+  // `game` and persist across nights; when both are gone she falls through to the
+  // plain sleep screen below (same as a villager). She never sees the pack's
+  // victim — the life potion is reserved blind.
+  if (seated.role === "witch" && (game.witchHeal || game.witchPoison)) {
+    const poisonCandidates = living.filter((player) => player.id !== seated.id);
+    return (
+      <Frame
+        title="Sos la Bruja del Callejón"
+        body="Dos frascos, uno por partida. Usá los que quieras esta noche."
+      >
+        {game.witchHeal ? (
+          <>
+            <Note tone="var(--lyk-gold)">
+              La poción de vida se reserva a ciegas: salva a quien la manada
+              marque esta noche. Si no cae nadie, vuelve a tu frasco.
+            </Note>
+            <PassOption
+              label="Reservar la poción de vida esta noche"
+              selected={healReserved}
+              onClick={onToggleHealReserve}
+            />
+          </>
+        ) : null}
+        {game.witchPoison ? (
+          <>
+            <Note tone="var(--lyk-blood-bright)">
+              El veneno mata sin remedio: ni el Curandero puede salvarlo.
+            </Note>
+            <PlayerGrid
+              players={poisonCandidates}
+              selectedId={witchPoisonId}
+              actionLabel={(name) => `Envenenar a ${name}`}
+              onSelect={onSelectWitchPoison}
+            />
+            <PassOption
+              label="No envenenar"
+              selected={witchPoisonId === null}
+              onClick={() => onSelectWitchPoison(null)}
+            />
+          </>
+        ) : null}
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={onConfirmAction}>Listo</PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  // villager (and Cupido on later nights, or La Bruja with no potions left): no
+  // night action.
   return (
     <Frame
       title={`Sos ${roleInfo(seated.role).name}`}
@@ -446,44 +513,42 @@ function ActionTurn({
 }
 
 /**
- * The dawn report, after the container has resolved the pack's votes. Reports
- * the pack's victim as the primary loss, plus every OTHER cat the night claimed
- * alongside them (the Cazador's shot and/or a lover chained by the bond) — 0, 1
- * or 2 further names, in seat order. The copy is gender-neutral ("consigo").
+ * The dawn report. It lists every cat the night claimed WITHOUT implying a cause
+ * between them — deaths can be independent now (La Bruja's poison kills on its
+ * own, apart from the wolves' victim), so the old "se llevó consigo a" phrasing
+ * would wrongly read as one death causing the others. The wolves' victim leads
+ * when there was one; otherwise the first fallen cat leads. The copy is
+ * gender-neutral.
  */
 function Dawn({
-  victimName,
-  othersNames,
+  fallenNames,
   spared,
   onContinue,
 }: {
-  victimName: string | null;
-  othersNames: readonly string[];
+  fallenNames: readonly string[];
   spared: boolean;
   onContinue: () => void;
 }) {
-  const fell = victimName !== null;
-  // A gender-neutral join of the other fallen: "A", "A y B" (never more than two).
-  const others =
-    othersNames.length === 2
-      ? `${othersNames[0]} y ${othersNames[1]}`
-      : (othersNames[0] ?? "");
-  const tookOthers = fell && othersNames.length > 0;
-  const body = tookOthers
-    ? `Amanece. ${victimName} no volvió al callejón, y se llevó consigo a ${others}.`
-    : fell
-      ? `Amanece. ${victimName} no volvió al callejón.`
-      : "Amaneció sin bajas.";
+  const fell = fallenNames.length > 0;
+  const [first, ...rest] = fallenNames;
+  // The trailing fallen, joined gender-neutrally: "B", "B y C", "B, C y D".
+  const restJoined =
+    rest.length <= 1
+      ? (rest[0] ?? "")
+      : `${rest.slice(0, -1).join(", ")} y ${rest[rest.length - 1]}`;
+  const body = !fell
+    ? "Amaneció sin bajas."
+    : rest.length === 0
+      ? `Amanece. ${first} no volvió al callejón.`
+      : `Amanece. ${first} no volvió al callejón. ${restJoined} tampoco.`;
   return (
     <Frame title="Amanece" body={body}>
       <Note tone={fell ? "var(--lyk-blood-bright)" : "var(--lyk-gold)"}>
-        {tookOthers
-          ? `La oscuridad se llevó a ${victimName}, y arrastró consigo a ${others}.`
-          : fell
-            ? `La oscuridad se llevó a ${victimName}.`
-            : spared
-              ? "La manada no se puso de acuerdo. Nadie cayó esta noche."
-              : "El umbral resistió. Nadie cayó esta noche."}
+        {fell
+          ? "El callejón cuenta sus ausencias al amanecer."
+          : spared
+            ? "La manada no se puso de acuerdo. Nadie cayó esta noche."
+            : "El umbral resistió. Nadie cayó esta noche."}
       </Note>
       <div style={{ marginTop: "auto" }}>
         <PrimaryButton onClick={onContinue}>Volver al callejón</PrimaryButton>

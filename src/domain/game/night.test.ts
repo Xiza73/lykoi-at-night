@@ -132,6 +132,20 @@ describe("resolveNight — Curandero ward memory (no-repeat / no-self)", () => {
     expect(g.lastWarded).toBe("p5");
   });
 
+  it("leaves La Bruja's potions untouched when the witch param defaults (old 3-/4-arg calls)", () => {
+    // A witch-in-play game resolved WITHOUT the witch param: the potions must not
+    // silently drain, and the victim dies as usual.
+    const g0 = createGame(
+      seats(6),
+      { werewolves: 1, seer: false, guardian: false, witch: true },
+      identityShuffle,
+    );
+    const g = resolveNight(g0, "p4", null);
+    expect(isAlive(g, "p4")).toBe(false);
+    expect(g.witchHeal).toBe(true);
+    expect(g.witchPoison).toBe(true);
+  });
+
   it("threads lastWarded through the hunter-shot return path", () => {
     // p1 wolf, p2 guardian, p3 hunter, p4-6 villagers. Wolf kills the hunter (p3),
     // whose pre-committed shot fires. The guardian legally wards p4, which is

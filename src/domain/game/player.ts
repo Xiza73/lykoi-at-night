@@ -29,6 +29,7 @@ export interface RoleConfig {
   readonly hunter?: boolean;
   readonly mayor?: boolean;
   readonly cupid?: boolean;
+  readonly witch?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -70,7 +71,8 @@ export function dealRoles(
     (config.guardian ? 1 : 0) +
     (config.hunter ? 1 : 0) +
     (config.mayor ? 1 : 0) +
-    (config.cupid ? 1 : 0);
+    (config.cupid ? 1 : 0) +
+    (config.witch ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -97,6 +99,9 @@ export function dealRoles(
   }
   if (config.cupid) {
     roles.push("cupid");
+  }
+  if (config.witch) {
+    roles.push("witch");
   }
   while (roles.length < seats.length) {
     roles.push("villager");
