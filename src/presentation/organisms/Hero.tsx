@@ -239,7 +239,7 @@ export function Hero() {
             }
             label="Duración"
           />
-          <Stat value="1" label="Dispositivo c/u" />
+          <Stat value="1" label="Teléfono" />
         </div>
       </div>
     </section>

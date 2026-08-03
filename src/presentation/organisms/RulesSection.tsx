@@ -11,41 +11,39 @@ const steps: Step[] = [
   {
     number: "01",
     title: "Reparto en secreto",
-    description:
-      "Cada gato recibe su rol y tres cartas de sombra boca abajo. Una de ellas puede llevar la marca.",
+    description: "Cada gato recibe su rol y lo mira a solas. Nadie enseña su carta.",
   },
   {
     number: "02",
     title: "Cae la noche",
     description:
-      "Todos cierran los ojos. Los Lykoi eligen a su presa. El Guardián vela una puerta: quien esté detrás, sobrevive. Nadie habla.",
+      "Todos cierran los ojos. Los Lykoi eligen presa, la Vidente investiga y el Guardián vela una puerta.",
   },
   {
     number: "03",
     title: "Amanece con una ausencia",
-    description:
-      "Se anuncia quién no volvió. Se juega con las cartas de mano: acusaciones, coartadas, conspiraciones.",
+    description: "Se anuncia qué gato no volvió al callejón.",
   },
   {
     number: "04",
-    title: "El juicio",
+    title: "El destierro",
     description:
-      "Tres marcas y el acusado revela una carta de sombra al azar. Si sale la marca, se acabó para él. Si no, todos miran al suelo.",
+      "De día se discute y se vota. El gato más señalado es desterrado del callejón.",
   },
   {
     number: "05",
     title: "Y vuelve a anochecer",
     description:
-      "Hasta que solo queden mentirosos o solo queden gatos que duermen tranquilos.",
+      "Hasta que caiga el último Lykoi, o queden tantos Lykoi como gatos honestos.",
   },
 ];
 
 /**
  * The #reglas section: intro + the 5-step "Cómo se juega" list.
  *
- * Win-condition note: the original design used a parity rule (Lykoi win when
- * they equal the honest cats). This copy has been rewritten to the literal
- * Salem 1692 rule — the Lykoi only win once no honest cat is left standing.
+ * Win-condition note: this copy matches the engine's parity rule — the
+ * neighborhood wins when the last Lykoi falls; the Lykoi win once they equal
+ * the honest cats, at which point voting can no longer save the village.
  */
 export function RulesSection() {
   return (
@@ -98,10 +96,9 @@ export function RulesSection() {
               textWrap: "pretty",
             }}
           >
-            El vecindario gana cuando los tres Lykoi han sido juzgados. Los Lykoi
-            solo se quedan el callejón cuando ya no queda un solo gato honesto en
-            pie: cuando el último ronroneo verdadero se ha apagado, no hay quien
-            los juzgue.
+            El vecindario gana cuando cae el último Lykoi. Los Lykoi ganan
+            cuando quedan tantos como gatos honestos: a partir de ahí, votar ya
+            no sirve de nada.
           </p>
         </div>
 
