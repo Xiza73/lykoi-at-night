@@ -212,3 +212,60 @@ export function resolveWolfVotes(
     ? { victim: leaders[0], tie: false }
     : { victim: null, tie: true };
 }
+
+/**
+ * Resolves the town's day vote into a banishment. Each entry is one living
+ * player's vote (or null to abstain), weight 1. Returns the plurality target.
+ *
+ * On a TIE for the top, the Alcalde may tip the scale: `mayorVote` is the LIVING
+ * mayor's own vote (already counted in `votes`), or null when there is no living
+ * mayor / the mayor abstained. If it lands on one of the tallied candidates, that
+ * candidate gets +1 and the tally is re-evaluated —
+ * modelling "on a tie the mayor's vote counts double". A unique winner then means
+ * { banished, tied: false, brokenByMayor: true }; anything else stays a tie
+ * ({ banished: null, tied: true }). No votes at all banishes nobody (not a tie).
+ */
+export function resolveDayVotes(
+  votes: readonly (PlayerId | null)[],
+  mayorVote: PlayerId | null = null,
+): { banished: PlayerId | null; tied: boolean; brokenByMayor: boolean } {
+  const tally = new Map<PlayerId, number>();
+  for (const vote of votes) {
+    if (vote !== null) {
+      tally.set(vote, (tally.get(vote) ?? 0) + 1);
+    }
+  }
+  if (tally.size === 0) {
+    return { banished: null, tied: false, brokenByMayor: false };
+  }
+  const leaders = topLeaders(tally);
+  if (leaders.length === 1) {
+    return { banished: leaders[0], tied: false, brokenByMayor: false };
+  }
+  // A tie: the Alcalde's own vote may tip the scale if it landed on a tallied
+  // candidate. Add its +1 and re-evaluate for a unique winner.
+  if (mayorVote !== null && tally.has(mayorVote)) {
+    const boosted = new Map(tally);
+    boosted.set(mayorVote, (boosted.get(mayorVote) ?? 0) + 1);
+    const after = topLeaders(boosted);
+    if (after.length === 1) {
+      return { banished: after[0], tied: false, brokenByMayor: true };
+    }
+  }
+  return { banished: null, tied: true, brokenByMayor: false };
+}
+
+/** The candidates sharing the highest vote count in a tally. */
+function topLeaders(tally: Map<PlayerId, number>): PlayerId[] {
+  let top = 0;
+  let leaders: PlayerId[] = [];
+  for (const [id, count] of tally) {
+    if (count > top) {
+      top = count;
+      leaders = [id];
+    } else if (count === top) {
+      leaders.push(id);
+    }
+  }
+  return leaders;
+}

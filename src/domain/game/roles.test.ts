@@ -8,6 +8,7 @@ describe("alignmentOf", () => {
   it("puts everyone else with the town", () => {
     expect(alignmentOf("seer")).toBe("town");
     expect(alignmentOf("guardian")).toBe("town");
+    expect(alignmentOf("mayor")).toBe("town");
     expect(alignmentOf("villager")).toBe("town");
   });
 });
@@ -25,6 +26,7 @@ describe("roleWeight", () => {
     expect(roleWeight("seer")).toBe(7);
     expect(roleWeight("guardian")).toBe(3);
     expect(roleWeight("hunter")).toBe(3);
+    expect(roleWeight("mayor")).toBe(2);
     expect(roleWeight("villager")).toBe(1);
   });
 });

@@ -26,6 +26,17 @@ describe("configBalance", () => {
     expect(configBalance(withHunter, 6)).toBe(9);
   });
 
+  it("adds the Alcalde's +2 when the mayor is in play", () => {
+    const withMayor: RoleConfig = {
+      werewolves: 1,
+      seer: true,
+      guardian: true,
+      mayor: true,
+    };
+    // -6 + 7 + 3 + 2 (mayor) + 2 villagers * 1 = +8
+    expect(configBalance(withMayor, 6)).toBe(8);
+  });
+
   it("subtracts each extra wolf from the total", () => {
     const oneWolf: RoleConfig = { werewolves: 1, seer: true, guardian: true };
     const twoWolves: RoleConfig = { werewolves: 2, seer: true, guardian: true };

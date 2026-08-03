@@ -48,6 +48,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-gold)",
         desc: "Si cae, se lleva a otro gato con él. Rencoroso incluso muerto.",
       };
+    case "mayor":
+      return {
+        name: "Alcalde del Callejón",
+        faction: "Vecindario",
+        tone: "var(--lyk-gold)",
+        desc: "Cuando el destierro queda empatado, tu palabra pesa doble e inclina la balanza.",
+      };
     case "villager":
       return {
         name: "Gato Doméstico",

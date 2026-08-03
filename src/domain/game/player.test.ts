@@ -39,6 +39,17 @@ describe("dealRoles", () => {
     expect(roleOf(players, "p3")).toBe("guardian");
     expect(players.filter((p) => p.role === "villager")).toHaveLength(3);
   });
+  it("deals the Alcalde when configured", () => {
+    // identityShuffle => [werewolf, seer, guardian, mayor, villager, villager]
+    const players = dealRoles(
+      seats(6),
+      { ...CORE, mayor: true },
+      identityShuffle,
+    );
+    expect(roleOf(players, "p4")).toBe("mayor");
+    expect(players.filter((p) => p.role === "mayor")).toHaveLength(1);
+    expect(players.filter((p) => p.role === "villager")).toHaveLength(2);
+  });
   it("works with specials off", () => {
     const players = dealRoles(seats(4), { werewolves: 1, seer: false, guardian: false }, identityShuffle);
     expect(players.filter((p) => p.role === "werewolf")).toHaveLength(1);

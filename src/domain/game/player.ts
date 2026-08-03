@@ -27,6 +27,7 @@ export interface RoleConfig {
   readonly seer: boolean;
   readonly guardian: boolean;
   readonly hunter?: boolean;
+  readonly mayor?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -66,7 +67,8 @@ export function dealRoles(
     wolfCount +
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0);
+    (config.hunter ? 1 : 0) +
+    (config.mayor ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -87,6 +89,9 @@ export function dealRoles(
   }
   if (config.hunter) {
     roles.push("hunter");
+  }
+  if (config.mayor) {
+    roles.push("mayor");
   }
   while (roles.length < seats.length) {
     roles.push("villager");

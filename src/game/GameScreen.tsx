@@ -4,6 +4,7 @@ import {
   createGame,
   hunterRevenge,
   lynch,
+  resolveDayVotes,
   resolveNight,
   resolveWolfVotes,
   type Game,
@@ -15,7 +16,7 @@ import { PhoneHeader } from "./components/PhoneHeader";
 import { LobbyView } from "./views/LobbyView";
 import { RevealView } from "./views/RevealView";
 import { NightView, type NightSubStep } from "./views/NightView";
-import { DayView } from "./views/DayView";
+import { DayView, type DayResult, type DaySubStep } from "./views/DayView";
 import { EndView } from "./views/EndView";
 import { HunterView } from "./views/HunterView";
 
@@ -67,8 +68,20 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
   // True when a double tie in the pack's vote spared the night (nobody chosen).
   const [nightSpared, setNightSpared] = useState(false);
-  // The day's suspect, marked by the town before the vote resolves.
-  const [suspectId, setSuspectId] = useState<string | null>(null);
+  // Day sub-flow state, mirroring the night machine. The town first DISCUSSES,
+  // then the phone passes to each LIVING player in SEAT ORDER for a SECRET
+  // ballot. The votes are collected here and handed to resolveDayVotes + lynch —
+  // the only day death path. The running tally never shows (unlike the pack at
+  // night), and no screen names a role at hand-off.
+  const [daySubStep, setDaySubStep] = useState<DaySubStep>("discuss");
+  const [daySeatIndex, setDaySeatIndex] = useState(0);
+  // Votes for the current day, keyed by the voting player's id (null = abstain).
+  const [dayVotes, setDayVotes] = useState<Record<string, string | null>>({});
+  // The seated voter's transient ballot: a chosen candidate, or an abstention.
+  const [dayPick, setDayPick] = useState<string | null>(null);
+  const [dayAbstained, setDayAbstained] = useState(false);
+  // The banishment announcement, snapshotted the moment the vote resolves.
+  const [dayResult, setDayResult] = useState<DayResult | null>(null);
   // The player the fallen Cazador de Sombras picks to take down with them.
   const [hunterTargetId, setHunterTargetId] = useState<string | null>(null);
 
@@ -92,6 +105,16 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setSeerTargetId(null);
     setDawnVictimName(null);
     setNightSpared(false);
+  };
+
+  // Resets the day machine when entering day (from dawn or a hunter's revenge).
+  const armDay = () => {
+    setDaySubStep("discuss");
+    setDaySeatIndex(0);
+    setDayVotes({});
+    setDayPick(null);
+    setDayAbstained(false);
+    setDayResult(null);
   };
 
   const handleDeal = (seats: readonly Seat[], roleConfig: RoleConfig) => {
@@ -118,6 +141,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // domain preserves seat order, so index i is the i-th living seat.
   const livingSeats = game?.players.filter((player) => player.alive) ?? [];
   const seated = livingSeats[seatIndex];
+  // The living voter currently holding the phone during the day's secret vote.
+  const daySeated = livingSeats[daySeatIndex];
 
   const handleOpenGate = () => {
     // Hand-off accepted: reveal the seated player's private action.
@@ -205,26 +230,110 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       setStep("end");
       return;
     }
-    setSuspectId(null);
+    armDay();
     setStep("day");
   };
 
-  const handleLynch = () => {
-    if (!game || suspectId === null) {
+  // The town opens the secret vote from the discussion board: pass to the first
+  // living seat.
+  const handleStartVote = () => {
+    setDaySeatIndex(0);
+    setDayPick(null);
+    setDayAbstained(false);
+    setDaySubStep("gate");
+  };
+
+  const handleDayOpenGate = () => {
+    // Hand-off accepted: reveal the seated voter's secret ballot.
+    setDaySubStep("vote");
+  };
+
+  const handleSelectCandidate = (playerId: string) => {
+    setDayPick(playerId);
+    setDayAbstained(false);
+  };
+
+  const handleAbstain = () => {
+    setDayPick(null);
+    setDayAbstained(true);
+  };
+
+  // The seated voter confirmed their ballot: fold it in, then advance to the next
+  // living seat — or resolve the vote once the pass is complete.
+  const handleConfirmVote = () => {
+    if (!game || !daySeated) {
       return;
     }
-    const next = lynch(game, suspectId);
+    // The confirmed ballot for this voter: their candidate, or null to abstain.
+    const votes = { ...dayVotes, [daySeated.id]: dayAbstained ? null : dayPick };
+    setDayVotes(votes);
+    setDayPick(null);
+    setDayAbstained(false);
+
+    const isLast = daySeatIndex + 1 >= livingSeats.length;
+    if (isLast) {
+      resolveDay(votes);
+      return;
+    }
+    setDaySeatIndex(daySeatIndex + 1);
+    setDaySubStep("gate");
+  };
+
+  // Resolves a completed day vote: the LIVING mayor's own ballot may break a tie.
+  // Then the banished player is lynched (or nobody falls), and the result screen
+  // reports the outcome before night.
+  const resolveDay = (votes: Record<string, string | null>) => {
+    if (!game) {
+      return;
+    }
+    // The living seats in the order they voted, so the ballot list matches.
+    const ballots = livingSeats.map((player) => votes[player.id] ?? null);
+    const mayor = livingSeats.find((player) => player.role === "mayor");
+    const mayorVote = mayor ? (votes[mayor.id] ?? null) : null;
+    const { banished, brokenByMayor } = resolveDayVotes(ballots, mayorVote);
+
+    if (banished === null) {
+      // Nobody banished: announce the stalemate, then fall into night.
+      setDayResult({ banishedName: null, brokenByMayor: false });
+      setDaySubStep("result");
+      return;
+    }
+    const banishedName =
+      game.players.find((player) => player.id === banished)?.name ?? null;
+    // lynch is the ONLY day death path: it removes the banished player and,
+    // if that ends the game, resolves it — otherwise the clock advances.
+    const next = lynch(game, banished);
     setGame(next);
-    setSuspectId(null);
-    // The Cazador is lynched by day: pause for the public revenge before night.
+    setDayResult({ banishedName, brokenByMayor });
+    // The Cazador was banished by day: pause for the public revenge before the
+    // clock is allowed to move on. The result screen shows after the revenge.
     if (next.pendingHunter !== null) {
       setHunterTargetId(null);
       setStep("hunter");
       return;
     }
-    if (next.status === "ended") {
+    setDaySubStep("result");
+  };
+
+  // Leaves the result screen: the domain already advanced the clock (or ended
+  // the game) inside lynch; route to whichever it reached.
+  const handleDayResultContinue = () => {
+    if (!game) {
+      return;
+    }
+    if (game.status === "ended") {
       setStep("end");
       return;
+    }
+    // A banishment already advanced to night via lynch; a stalemate has not, so
+    // advance it here. Either way we land on night.
+    if (game.phase === "day") {
+      const next = advancePhase(game);
+      setGame(next);
+      if (next.status === "ended") {
+        setStep("end");
+        return;
+      }
     }
     armNight();
     setStep("night");
@@ -250,8 +359,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       setStep("night");
       return;
     }
-    // Dawn broke (the hunter fell at night): straight to the day board.
-    setSuspectId(null);
+    // Dawn broke (the hunter fell at night): straight to the day's discussion.
+    armDay();
     setStep("day");
   };
 
@@ -262,7 +371,6 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     // "No lynch": skip straight to the next night.
     const next = advancePhase(game);
     setGame(next);
-    setSuspectId(null);
     if (next.status === "ended") {
       setStep("end");
       return;
@@ -275,9 +383,9 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setGame(null);
     setStep("lobby");
     setRevealIndex(0);
-    setSuspectId(null);
     setHunterTargetId(null);
     armNight();
+    armDay();
   };
 
   // The header phase chip only shows during active play (night/day).
@@ -394,10 +502,18 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     return (
       <DayView
         game={game}
-        suspectId={suspectId}
-        onSelectSuspect={setSuspectId}
-        onLynch={handleLynch}
+        subStep={daySubStep}
+        seated={daySeated}
+        pick={dayPick}
+        abstained={dayAbstained}
+        result={dayResult}
+        onStartVote={handleStartVote}
         onSkip={handleSkipDay}
+        onOpenGate={handleDayOpenGate}
+        onSelectCandidate={handleSelectCandidate}
+        onAbstain={handleAbstain}
+        onConfirmVote={handleConfirmVote}
+        onResultContinue={handleDayResultContinue}
       />
     );
   }
