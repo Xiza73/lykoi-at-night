@@ -5,6 +5,11 @@ import {
   type RoleConfig,
   type Seat,
 } from "../../domain/game/player";
+import {
+  balanceBand,
+  configBalance,
+  type BalanceBand,
+} from "../../domain/game/balance";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
 import { maxWolves } from "../roleLabels";
@@ -411,6 +416,8 @@ function TableStep({
       >
         <CountLabel count={count} onEdit={onEditCount} />
 
+        <BalanceBar config={config} count={count} />
+
         <RolePicker
           config={config}
           upper={upper}
@@ -473,6 +480,108 @@ function CountLabel({ count, onEdit }: { count: number; onEdit: () => void }) {
         Cambiar
       </span>
     </button>
+  );
+}
+
+/** The Spanish label shown for each balance band. */
+const BAND_LABELS: Record<BalanceBand, string> = {
+  wolfHeavy: "Muy a favor de los Lykoi",
+  experienced: "Para veteranos",
+  even: "Parejo",
+  beginner: "Para principiantes",
+  townHeavy: "Muy a favor del pueblo",
+};
+
+/** The accent colour for each band: wolf-red for negative, gold for town, neutral at even. */
+const BAND_COLORS: Record<BalanceBand, string> = {
+  wolfHeavy: "var(--lyk-blood-bright)",
+  experienced: "var(--lyk-blood-bright)",
+  even: "var(--lyk-muted-2)",
+  beginner: "var(--lyk-gold)",
+  townHeavy: "var(--lyk-gold)",
+};
+
+/** Renders a signed total with a real minus sign and an explicit plus. */
+function formatSigned(total: number): string {
+  if (total > 0) return `+${total}`;
+  if (total < 0) return `−${Math.abs(total)}`;
+  return "0";
+}
+
+/**
+ * Live balance readout: sums the hand's role weights and shows the signed total,
+ * coloured and labelled by band, so players can tune the game before dealing.
+ * Presentational — it only calls the two pure domain functions.
+ */
+function BalanceBar({ config, count }: { config: RoleConfig; count: number }) {
+  const total = configBalance(config, count);
+  const band = balanceBand(total);
+  const color = BAND_COLORS[band];
+
+  return (
+    <div
+      aria-label="Equilibrio de la partida"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+        padding: "10px 14px",
+        border: "1px dashed #3a3833",
+        background: "rgba(217,164,76,.04)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "10px",
+            letterSpacing: ".26em",
+            textTransform: "uppercase",
+            color: "var(--lyk-faint)",
+          }}
+        >
+          Equilibrio
+        </span>
+        <span
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: "10px",
+          }}
+        >
+          <span style={{ fontSize: "12.5px", color: "var(--lyk-muted-2)" }}>
+            {BAND_LABELS[band]}
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--lyk-serif)",
+              fontSize: "26px",
+              lineHeight: 1,
+              color,
+              minWidth: "1.6em",
+              textAlign: "right",
+            }}
+          >
+            {formatSigned(total)}
+          </span>
+        </span>
+      </div>
+      <span
+        style={{
+          fontSize: "11px",
+          lineHeight: 1.4,
+          color: "var(--lyk-faint)",
+        }}
+      >
+        El punto justo está entre −3 y +3.
+      </span>
+    </div>
   );
 }
 

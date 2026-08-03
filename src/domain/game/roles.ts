@@ -18,3 +18,21 @@ export function alignmentOf(role: Role): Alignment {
 export function isWolf(role: Role): boolean {
   return alignmentOf(role) === "wolves";
 }
+
+/**
+ * The balance weight each role contributes to a hand. Positive weights favour
+ * the town; negative weights favour the wolves. These are the target-roster
+ * weights used to score how easy or hard a game is for the town.
+ */
+export const ROLE_WEIGHT: Record<Role, number> = {
+  werewolf: -6,
+  seer: 7,
+  guardian: 3, // becomes the Curandero later; same weight
+  hunter: 3, // the Cazador; same weight
+  villager: 1,
+};
+
+/** The balance weight for a single role. */
+export function roleWeight(role: Role): number {
+  return ROLE_WEIGHT[role];
+}

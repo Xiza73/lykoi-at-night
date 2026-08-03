@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { alignmentOf, isWolf } from "./roles";
+import { alignmentOf, isWolf, roleWeight } from "./roles";
 
 describe("alignmentOf", () => {
   it("puts werewolves with the wolves", () => {
@@ -16,5 +16,15 @@ describe("isWolf", () => {
   it("is true only for werewolves", () => {
     expect(isWolf("werewolf")).toBe(true);
     expect(isWolf("villager")).toBe(false);
+  });
+});
+
+describe("roleWeight", () => {
+  it("carries the target-roster balance weight for each role", () => {
+    expect(roleWeight("werewolf")).toBe(-6);
+    expect(roleWeight("seer")).toBe(7);
+    expect(roleWeight("guardian")).toBe(3);
+    expect(roleWeight("hunter")).toBe(3);
+    expect(roleWeight("villager")).toBe(1);
   });
 });

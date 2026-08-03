@@ -375,6 +375,27 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the live balance readout on the table step and updates as the hand changes", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    // Drive the wizard to the table step at 6 players with Clásico.
+    await setCount(user, 6);
+    await user.click(screen.getByRole("button", { name: /^clásico$/i }));
+
+    const balance = screen.getByLabelText(/equilibrio de la partida/i);
+    // Clásico-6 (1 wolf, seer, guardian) scores +7 — very town-favoured.
+    expect(balance).toHaveTextContent("+7");
+    expect(balance).toHaveTextContent(/muy a favor del pueblo/i);
+
+    // Drop the Guardián del Umbral: its seat becomes a villager, so the total
+    // falls by the guardian's +3 minus the villager's +1 — a net −2, to +5.
+    await user.click(
+      screen.getByRole("button", { name: /^guardián del umbral$/i }),
+    );
+    expect(balance).toHaveTextContent("+5");
+  });
+
   it("shows a werewolf their packmate on the reveal card", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
