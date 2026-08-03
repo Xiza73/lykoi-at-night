@@ -6,6 +6,11 @@ import { roleInfo } from "../roleLabels";
 interface RevealViewProps {
   /** The player currently holding the phone. */
   player: Player;
+  /**
+   * Names of the OTHER werewolves. Only meaningful for a werewolf player, whose
+   * card reveals their pack; ignored for any other role.
+   */
+  teammates?: string[];
   /** True when this is the last player of the reveal order. */
   isLast: boolean;
   /** Called once this player has hidden their card and passes the phone on. */
@@ -17,9 +22,15 @@ interface RevealViewProps {
  * flipped it reveals the player's role name, faction and power. Resets its flip
  * state whenever the player changes (keyed by the parent).
  */
-export function RevealView({ player, isLast, onPass }: RevealViewProps) {
+export function RevealView({
+  player,
+  teammates = [],
+  isLast,
+  onPass,
+}: RevealViewProps) {
   const [flipped, setFlipped] = useState(false);
   const info = roleInfo(player.role);
+  const isWolf = player.role === "werewolf";
 
   return (
     <div
@@ -140,6 +151,21 @@ export function RevealView({ player, isLast, onPass }: RevealViewProps) {
             >
               {info.desc}
             </p>
+            {isWolf ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "11px",
+                  lineHeight: 1.5,
+                  color: "var(--lyk-muted-2)",
+                  textWrap: "pretty",
+                }}
+              >
+                {teammates.length > 0
+                  ? `Cazan contigo: ${teammates.join(", ")}`
+                  : "Cazas en soledad esta noche."}
+              </p>
+            ) : null}
           </CardFace>
         </div>
       </button>

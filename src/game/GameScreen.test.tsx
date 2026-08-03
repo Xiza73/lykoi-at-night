@@ -39,6 +39,32 @@ async function walkReveal(user: ReturnType<typeof userEvent.setup>) {
   }
 }
 
+/**
+ * Fills a 5-seat lobby with a two-wolf, no-special config and deals. With the
+ * identity shuffle the roles fall in seat order, so p1/p2 (Ana, Beto) are the
+ * werewolves and p3/p4/p5 (Caro, Dario, Eva) are townsfolk.
+ */
+async function fillTwoWolfLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  // The lobby starts with 4 seats; add one to reach five.
+  await user.click(screen.getByRole("button", { name: /añadir gato/i }));
+
+  const packNames = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
+  for (let i = 0; i < packNames.length; i += 1) {
+    const input = screen.getByLabelText(`Nombre del gato ${i + 1}`);
+    await user.clear(input);
+    await user.type(input, packNames[i]);
+  }
+
+  // Two Lykoi, no Vidente, no Guardián.
+  await user.click(screen.getByRole("button", { name: /más lykoi/i }));
+  await user.click(screen.getByRole("button", { name: /^vidente$/i }));
+  await user.click(screen.getByRole("button", { name: /guardián del umbral/i }));
+
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -128,5 +154,53 @@ describe("GameScreen", () => {
     expect(
       screen.getByText(/el vecindario duerme tranquilo/i),
     ).toBeInTheDocument();
+  });
+
+  it("shows a werewolf their packmate on the reveal card", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillTwoWolfLobbyAndDeal(user);
+
+    // First reveal: Ana (p1) is a werewolf; her flipped card names Beto (p2).
+    await user.click(
+      screen.getByRole("button", { name: /voltear la carta de ana/i }),
+    );
+    expect(screen.getByText(/cazan contigo: beto/i)).toBeInTheDocument();
+  });
+
+  it("never offers a fellow wolf as a target in the wolves' night step", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillTwoWolfLobbyAndDeal(user);
+
+    // Walk the reveal (five players) through to the first night.
+    const packNames = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
+    for (let i = 0; i < packNames.length; i += 1) {
+      await user.click(
+        screen.getByRole("button", { name: /voltear la carta/i }),
+      );
+      const passLabel =
+        i === packNames.length - 1 ? /ocultar y empezar/i : /ocultar y pasar/i;
+      await user.click(screen.getByRole("button", { name: passLabel }));
+    }
+
+    // Guardian gate is still shown (turns never leak who is alive): pass through.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Wolves' step: only living townsfolk are selectable, never a fellow wolf.
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    expect(
+      screen.getByRole("button", { name: /elegir a caro/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /elegir a ana/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /elegir a beto/i }),
+    ).not.toBeInTheDocument();
   });
 });

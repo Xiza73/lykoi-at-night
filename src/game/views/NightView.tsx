@@ -1,5 +1,5 @@
 import type { Game } from "../../domain/game/game";
-import { investigate } from "../../domain/game/game";
+import { investigate, livingTown } from "../../domain/game/game";
 import type { Player } from "../../domain/game/player";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
@@ -62,6 +62,9 @@ export function NightView({
   onDawnContinue,
 }: NightViewProps) {
   const living = game.players.filter((player) => player.alive);
+  // The wolves never target their own pack: their prey list is the living
+  // townsfolk only. The seer and guardian still act on every living player.
+  const wolfCandidates = livingTown(game);
 
   if (step === "guardian-gate") {
     return (
@@ -124,7 +127,7 @@ export function NightView({
         body="Elijan a quién se lleva la oscuridad."
       >
         <PlayerGrid
-          players={living}
+          players={wolfCandidates}
           selectedId={wolfTargetId}
           actionLabel={(name) => `Elegir a ${name}`}
           onSelect={onSelectWolfTarget}

@@ -257,10 +257,19 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
 
     if (step === "reveal") {
       const player = game.players[revealIndex];
+      // Werewolves know their pack: surface the OTHER wolves' names so the reveal
+      // card can show them. Empty (or ignored) for non-wolf players.
+      const teammates =
+        player.role === "werewolf"
+          ? game.players
+              .filter((p) => p.role === "werewolf" && p.id !== player.id)
+              .map((p) => p.name)
+          : [];
       return (
         <RevealView
           key={player.id}
           player={player}
+          teammates={teammates}
           isLast={revealIndex + 1 >= game.players.length}
           onPass={handlePass}
         />
