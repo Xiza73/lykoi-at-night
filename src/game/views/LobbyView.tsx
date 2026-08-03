@@ -355,13 +355,15 @@ function TableStep({
   onEditCount: () => void;
   onDeal: () => void;
 }) {
-  // The Madre Camada is wolf-aligned, so she counts toward the pack for both the
-  // strict-minority check and the specials-fit check (mirrors the domain).
-  const wolfCount = config.werewolves + (config.infector ? 1 : 0);
-  // The werewolves stepper bound leaves room for the Madre Camada when she is in
-  // play, so the pack (werewolves + infector) never reaches the strict-minority
-  // ceiling maxWolves enforces.
-  const upper = Math.max(1, maxWolves(count) - (config.infector ? 1 : 0));
+  // The Madre Camada and the Ronroneo Falso are wolf-aligned, so they count
+  // toward the pack for both the strict-minority check and the specials-fit check
+  // (mirrors the domain).
+  const wolfSpecials = (config.infector ? 1 : 0) + (config.trickster ? 1 : 0);
+  const wolfCount = config.werewolves + wolfSpecials;
+  // The werewolves stepper bound leaves room for the wolf-aligned specials when
+  // they are in play, so the pack (werewolves + infector + trickster) never
+  // reaches the strict-minority ceiling maxWolves enforces.
+  const upper = Math.max(1, maxWolves(count) - wolfSpecials);
   const specials =
     wolfCount +
     (config.seer ? 1 : 0) +
@@ -545,6 +547,11 @@ function RolePicker({
         label="Madre Camada"
         active={config.infector ?? false}
         onToggle={() => onChange({ ...config, infector: !config.infector })}
+      />
+      <RoleToggle
+        label="Ronroneo Falso"
+        active={config.trickster ?? false}
+        onToggle={() => onChange({ ...config, trickster: !config.trickster })}
       />
 
       {showComingSoon

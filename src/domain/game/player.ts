@@ -28,6 +28,7 @@ export interface RoleConfig {
   readonly guardian: boolean;
   readonly hunter?: boolean;
   readonly infector?: boolean;
+  readonly trickster?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -62,7 +63,8 @@ export function dealRoles(
   if (config.werewolves < 1) {
     throw new RangeError("A game needs at least one werewolf");
   }
-  const wolfCount = config.werewolves + (config.infector ? 1 : 0);
+  const wolfCount =
+    config.werewolves + (config.infector ? 1 : 0) + (config.trickster ? 1 : 0);
   const specials =
     wolfCount + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0) + (config.hunter ? 1 : 0);
   if (specials > seats.length) {
@@ -79,6 +81,9 @@ export function dealRoles(
   }
   if (config.infector) {
     roles.push("infector");
+  }
+  if (config.trickster) {
+    roles.push("trickster");
   }
   if (config.seer) {
     roles.push("seer");

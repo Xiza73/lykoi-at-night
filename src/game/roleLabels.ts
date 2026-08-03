@@ -34,6 +34,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-blood-bright)",
         desc: "Una vez por partida, convierte a un inocente en uno de los suyos.",
       };
+    case "trickster":
+      return {
+        name: "Ronroneo Falso",
+        faction: "Maldito",
+        tone: "var(--lyk-blood-bright)",
+        desc: "Un Lykoi que, ante la Vidente, aparece limpio.",
+      };
     case "seer":
       return {
         name: "Vidente del Alféizar",

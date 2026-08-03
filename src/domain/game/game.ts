@@ -8,7 +8,7 @@ import {
   type RoleConfig,
   type Seat,
 } from "./player";
-import { alignmentOf, isWolf, type Alignment } from "./roles";
+import { isWolf, seerReadingOf, type Alignment } from "./roles";
 import type { Shuffle } from "./shuffle";
 
 export type GameStatus = "in_progress" | "ended";
@@ -94,10 +94,10 @@ export function advancePhase(game: Game): Game {
   return { ...game, phase, round };
 }
 
-/** The seer's reading of a player: their true alignment (null if unknown id). */
+/** The seer's reading of a player: the trickster is disguised (null if unknown id). */
 export function investigate(game: Game, targetId: PlayerId): Alignment | null {
   const target = game.players.find((player) => player.id === targetId);
-  return target ? alignmentOf(target.role) : null;
+  return target ? seerReadingOf(target.role) : null;
 }
 
 /**

@@ -79,7 +79,7 @@ export const roles: Role[] = [
     faction: "Maldito",
     description:
       "Un Lykoi que, ante la Vidente, aparece limpio. Ha practicado ese ronroneo frente al espejo durante años.",
-    implemented: false,
+    implemented: true,
     art: (
       <>
         <path d="M4 7 h16 v6 q0 6 -8 8 q-8 -2 -8 -8z" />

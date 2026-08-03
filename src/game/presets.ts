@@ -32,14 +32,11 @@ export function presetConfig(preset: PresetId, count: number): RoleConfig {
 /**
  * The special roles previewed under the Personalizado preset that are not yet
  * dealable. Display-only: they are NOT part of `RoleConfig` and never reach the
- * domain. The Cazador de Sombras and the Madre Camada graduated out of this list
- * — they are now real toggles feeding `config.hunter` and `config.infector`.
+ * domain. The Cazador de Sombras, the Madre Camada and the Ronroneo Falso
+ * graduated out of this list — they are now real toggles feeding `config.hunter`,
+ * `config.infector` and `config.trickster`.
  */
-export const COMING_SOON_ROLES = [
-  "Ronroneo Falso",
-  "El Insomne",
-  "La Chismosa",
-] as const;
+export const COMING_SOON_ROLES = ["El Insomne", "La Chismosa"] as const;
 
 /**
  * Cat-name pool used to prefill the roster so a deal is never blocked by an
