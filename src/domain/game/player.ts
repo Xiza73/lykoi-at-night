@@ -17,9 +17,16 @@ export interface Player {
   readonly alive: boolean;
 }
 
-/** Salem 1692 supports 4 to 12 players. */
+/** The game supports 4 to 12 players. */
 export const MIN_PLAYERS = 4;
 export const MAX_PLAYERS = 12;
+
+/** Which special roles are in play; the remaining seats become villagers. */
+export interface RoleConfig {
+  readonly werewolves: number;
+  readonly seer: boolean;
+  readonly guardian: boolean;
+}
 
 /** Creates a living player with the given role. */
 export function createPlayer(id: PlayerId, name: string, role: Role): Player {
@@ -32,15 +39,13 @@ export function eliminate(player: Player): Player {
 }
 
 /**
- * Deals secret roles to seats: the first `witchCount` seats of the shuffled
- * order become witches, the rest villagers. Pure — given the same shuffle the
- * outcome is deterministic, which is what makes it testable.
- *
- * Throws if the seat count or witch count breaks the game's invariants.
+ * Deals roles to seats: the configured werewolves, an optional seer and
+ * guardian, and villagers for the rest. Shuffled so roles are unlinkable to
+ * seat order. Throws if the config breaks the game's invariants.
  */
 export function dealRoles(
   seats: readonly Seat[],
-  witchCount: number,
+  config: RoleConfig,
   shuffle: Shuffle,
 ): Player[] {
   if (seats.length < MIN_PLAYERS || seats.length > MAX_PLAYERS) {
@@ -48,17 +53,38 @@ export function dealRoles(
       `A game needs between ${MIN_PLAYERS} and ${MAX_PLAYERS} players, got ${seats.length}`,
     );
   }
-  if (witchCount < 1 || witchCount >= seats.length) {
-    throw new RangeError(
-      `witchCount must be between 1 and ${seats.length - 1}, got ${witchCount}`,
-    );
-  }
   const ids = new Set(seats.map((seat) => seat.id));
   if (ids.size !== seats.length) {
     throw new Error("Duplicate player ids are not allowed");
   }
+  if (config.werewolves < 1) {
+    throw new RangeError("A game needs at least one werewolf");
+  }
+  const specials =
+    config.werewolves + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0);
+  if (specials > seats.length) {
+    throw new RangeError("More special roles than players");
+  }
+  const town = seats.length - config.werewolves;
+  if (config.werewolves >= town) {
+    throw new RangeError("Werewolves must be fewer than the townsfolk");
+  }
+
+  const roles: Role[] = [];
+  for (let i = 0; i < config.werewolves; i += 1) {
+    roles.push("werewolf");
+  }
+  if (config.seer) {
+    roles.push("seer");
+  }
+  if (config.guardian) {
+    roles.push("guardian");
+  }
+  while (roles.length < seats.length) {
+    roles.push("villager");
+  }
 
   return shuffle(seats).map((seat, index) =>
-    createPlayer(seat.id, seat.name, index < witchCount ? "witch" : "villager"),
+    createPlayer(seat.id, seat.name, roles[index]),
   );
 }

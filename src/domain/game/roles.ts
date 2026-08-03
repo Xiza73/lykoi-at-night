@@ -1,14 +1,15 @@
-/**
- * Core domain types for the social-deduction game.
- *
- * This module is UI- and platform-agnostic: it MUST NOT import React or Tauri.
- * The rules engine lives here so it can be unit-tested in isolation.
- */
+/** A player's secret role. */
+export type Role = "werewolf" | "seer" | "guardian" | "villager";
 
-/** A player's secret allegiance in a game of Lykoi at Night. */
-export type Role = "villager" | "witch";
+/** The two teams. */
+export type Alignment = "wolves" | "town";
 
-/** Whether a given role belongs to the witch faction. */
-export function isWitch(role: Role): boolean {
-  return role === "witch";
+/** Which team a role belongs to (only werewolves are wolves). */
+export function alignmentOf(role: Role): Alignment {
+  return role === "werewolf" ? "wolves" : "town";
+}
+
+/** Whether a role is a werewolf. */
+export function isWolf(role: Role): boolean {
+  return role === "werewolf";
 }

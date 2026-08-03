@@ -5,71 +5,61 @@ import {
   eliminate,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  type RoleConfig,
   type Seat,
 } from "./player";
+import type { Role } from "./roles";
 import type { Shuffle } from "./shuffle";
 
 const identityShuffle: Shuffle = (items) => [...items];
-
 function seats(count: number): Seat[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `p${i + 1}`,
-    name: `Player ${i + 1}`,
-  }));
+  return Array.from({ length: count }, (_, i) => ({ id: `p${i + 1}`, name: `Player ${i + 1}` }));
+}
+const CORE: RoleConfig = { werewolves: 1, seer: true, guardian: true };
+function roleOf(players: { id: string; role: Role }[], id: string): Role | undefined {
+  return players.find((p) => p.id === id)?.role;
 }
 
-describe("createPlayer", () => {
-  it("starts alive", () => {
-    expect(createPlayer("p1", "Whiskers", "villager").alive).toBe(true);
-  });
-});
-
-describe("eliminate", () => {
-  it("marks the player dead without mutating the original", () => {
-    const player = createPlayer("p1", "Whiskers", "witch");
-    const dead = eliminate(player);
+describe("createPlayer / eliminate", () => {
+  it("starts alive and eliminates immutably", () => {
+    const p = createPlayer("p1", "Ana", "villager");
+    expect(p.alive).toBe(true);
+    const dead = eliminate(p);
     expect(dead.alive).toBe(false);
-    expect(player.alive).toBe(true);
+    expect(p.alive).toBe(true);
   });
 });
 
 describe("dealRoles", () => {
-  it("assigns the first shuffled seats as witches", () => {
-    const players = dealRoles(seats(5), 2, identityShuffle);
-    const witches = players.filter((p) => p.role === "witch");
-    expect(witches).toHaveLength(2);
-    expect(witches.map((p) => p.id)).toEqual(["p1", "p2"]);
+  it("deals the configured roles, filling the rest with villagers", () => {
+    // identityShuffle => [werewolf, seer, guardian, villager, villager, villager]
+    const players = dealRoles(seats(6), CORE, identityShuffle);
+    expect(roleOf(players, "p1")).toBe("werewolf");
+    expect(roleOf(players, "p2")).toBe("seer");
+    expect(roleOf(players, "p3")).toBe("guardian");
+    expect(players.filter((p) => p.role === "villager")).toHaveLength(3);
   });
-
-  it("assigns a role to every seat", () => {
-    const players = dealRoles(seats(6), 2, identityShuffle);
-    expect(players).toHaveLength(6);
-    expect(players.every((p) => p.role === "witch" || p.role === "villager")).toBe(true);
+  it("works with specials off", () => {
+    const players = dealRoles(seats(4), { werewolves: 1, seer: false, guardian: false }, identityShuffle);
+    expect(players.filter((p) => p.role === "werewolf")).toHaveLength(1);
+    expect(players.filter((p) => p.role === "villager")).toHaveLength(3);
   });
-
   it("rejects fewer than the minimum players", () => {
-    expect(() => dealRoles(seats(MIN_PLAYERS - 1), 1, identityShuffle)).toThrow();
+    expect(() => dealRoles(seats(MIN_PLAYERS - 1), CORE, identityShuffle)).toThrow();
   });
-
   it("rejects more than the maximum players", () => {
-    expect(() => dealRoles(seats(MAX_PLAYERS + 1), 1, identityShuffle)).toThrow();
+    expect(() => dealRoles(seats(MAX_PLAYERS + 1), CORE, identityShuffle)).toThrow();
   });
-
-  it("rejects a witch count that leaves no villagers", () => {
-    expect(() => dealRoles(seats(4), 4, identityShuffle)).toThrow();
+  it("rejects zero werewolves", () => {
+    expect(() => dealRoles(seats(6), { werewolves: 0, seer: false, guardian: false }, identityShuffle)).toThrow();
   });
-
-  it("rejects zero witches", () => {
-    expect(() => dealRoles(seats(4), 0, identityShuffle)).toThrow();
+  it("rejects werewolves that are not a strict minority", () => {
+    expect(() => dealRoles(seats(4), { werewolves: 2, seer: false, guardian: false }, identityShuffle)).toThrow();
   });
-
   it("rejects duplicate player ids", () => {
     const dupes: Seat[] = [
-      { id: "x", name: "A" },
-      { id: "x", name: "B" },
-      { id: "y", name: "C" },
-      { id: "z", name: "D" },
+      { id: "x", name: "A" }, { id: "x", name: "B" }, { id: "y", name: "C" }, { id: "z", name: "D" },
     ];
-    expect(() => dealRoles(dupes, 1, identityShuffle)).toThrow();
+    expect(() => dealRoles(dupes, { werewolves: 1, seer: false, guardian: false }, identityShuffle)).toThrow();
   });
 });
