@@ -40,6 +40,16 @@ describe("presetConfig", () => {
     });
   });
 
+  it("Avanzado is Clásico plus the Cazador de Sombras and the Madre Camada", () => {
+    expect(presetConfig("advanced", 8)).toEqual({
+      werewolves: recommendedWolves(8),
+      seer: true,
+      guardian: true,
+      hunter: true,
+      infector: true,
+    });
+  });
+
   it("Personalizado starts from the Clásico hand", () => {
     expect(presetConfig("custom", 6)).toEqual(presetConfig("classic", 6));
   });

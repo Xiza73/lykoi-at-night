@@ -1,15 +1,15 @@
 /** A player's secret role. */
-export type Role = "werewolf" | "seer" | "guardian" | "hunter" | "villager";
+export type Role = "werewolf" | "infector" | "seer" | "guardian" | "hunter" | "villager";
 
 /** The two teams. */
 export type Alignment = "wolves" | "town";
 
-/** Which team a role belongs to (only werewolves are wolves). */
+/** Which team a role belongs to (werewolves and the infector are wolves). */
 export function alignmentOf(role: Role): Alignment {
-  return role === "werewolf" ? "wolves" : "town";
+  return role === "werewolf" || role === "infector" ? "wolves" : "town";
 }
 
-/** Whether a role is a werewolf. */
+/** Whether a role is on the wolf team. */
 export function isWolf(role: Role): boolean {
-  return role === "werewolf";
+  return alignmentOf(role) === "wolves";
 }

@@ -87,16 +87,56 @@ async function fillTwoWolfLobbyAndDeal(
 }
 
 /**
- * Fills a six-seat Avanzado lobby (Clásico + Cazador de Sombras) and deals. With
- * the identity shuffle the roles fall in seat order: Ana (p1) wolf, Beto (p2)
- * seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva/Fabi villagers.
+ * Fills a six-seat Cazador lobby via Personalizado (Clásico + the Cazador de
+ * Sombras toggle, no Madre Camada) and deals. With the identity shuffle the roles
+ * fall in seat order: Ana (p1) wolf, Beto (p2) seer, Caro (p3) guardian, Dario
+ * (p4) the Cazador, Eva/Fabi villagers.
  */
 async function fillHunterLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^avanzado$/i }));
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Personalizado starts from the Clásico hand; add the Cazador de Sombras.
+  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
   await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
+/**
+ * The eight-seat roster used by the Madre Camada scenario. Enough town to absorb
+ * a night kill AND a conversion without the wolves reaching parity, so the game
+ * keeps going into the next day.
+ */
+const INFECTOR_NAMES = [
+  "Ana",
+  "Beto",
+  "Caro",
+  "Dario",
+  "Eva",
+  "Fabi",
+  "Gala",
+  "Hugo",
+] as const;
+
+/**
+ * Fills an eight-seat lobby via Personalizado with the Madre Camada toggled on
+ * (Clásico base + infector, no Cazador) and deals. With the identity shuffle the
+ * roles fall in seat order: Ana (p1) wolf, Beto (p2) the Madre Camada, Caro (p3)
+ * seer, Dario (p4) guardian, Eva/Fabi/Gala/Hugo villagers.
+ */
+async function fillInfectorLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, INFECTOR_NAMES.length);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Personalizado at eight players seeds two Lykoi; trim to one so the pack is
+  // one werewolf plus the Madre Camada — leaving enough town to survive a kill
+  // and a conversion in the same night.
+  await user.click(screen.getByRole("button", { name: /menos lykoi/i }));
+  // Add the Madre Camada.
+  await user.click(screen.getByRole("button", { name: /^madre camada$/i }));
+  await renameSeats(user, INFECTOR_NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
@@ -239,6 +279,63 @@ describe("GameScreen", () => {
       screen.getByRole("button", { name: /voltear la carta de ana/i }),
     );
     expect(screen.getByText(/cazan contigo: beto/i)).toBeInTheDocument();
+  });
+
+  it("the Madre Camada turns a townsperson, who gets a private dawn 'you were turned' gate", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillInfectorLobbyAndDeal(user);
+    // Walk the eight-player reveal through to the first night.
+    for (let i = 0; i < INFECTOR_NAMES.length; i += 1) {
+      await user.click(screen.getByRole("button", { name: /voltear la carta/i }));
+      const passLabel =
+        i === INFECTOR_NAMES.length - 1 ? /ocultar y empezar/i : /ocultar y pasar/i;
+      await user.click(screen.getByRole("button", { name: passLabel }));
+    }
+
+    // Guardian gate -> pick: ward nobody.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Wolves gate -> take Eva (a villager) and seal.
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a eva/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+
+    // Madre Camada gate -> convert Fabi (a villager) into the pack.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /convertir a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seer gate -> look at Caro, then resolve the night.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a caro/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Before dawn: the private "you were turned" gate hands the phone to Fabi.
+    expect(screen.getByText(/pásale el teléfono a fabi/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    // Now Fabi is told, privately, that they hunt with the Lykoi.
+    expect(
+      screen.getByText(/anoche te mordieron\. ahora cazás con los lykoi/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /entendido/i }));
+
+    // Then dawn breaks and reports Eva's death.
+    expect(screen.getByText(/eva no volvió al callejón/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    // Into the day board: Fabi is now on the wolf side, so the town no longer
+    // has the numbers to end it — the game is still in progress.
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+    // Fabi is alive (turned, not killed) and selectable as a suspect.
+    expect(
+      screen.getByRole("button", { name: /señalar a fabi/i }),
+    ).toBeInTheDocument();
   });
 
   it("never offers a fellow wolf as a target in the wolves' night step", async () => {

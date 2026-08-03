@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Game } from "../../domain/game/game";
 import { investigate, livingTown } from "../../domain/game/game";
 import type { Player } from "../../domain/game/player";
@@ -14,6 +15,8 @@ export type NightStep =
   | "guardian-pick"
   | "wolf-gate"
   | "wolf-pick"
+  | "infector-gate"
+  | "infector-pick"
   | "seer-gate"
   | "seer-pick"
   | "dawn";
@@ -25,6 +28,8 @@ interface NightViewProps {
   protectedId: string | null;
   /** The Lykoi's chosen victim, once picked. */
   wolfTargetId: string | null;
+  /** The Madre Camada's chosen townsperson to convert, or null for "pass". */
+  infectTargetId: string | null;
   /** The player the Seer looked at this night, if any. */
   seerTargetId: string | null;
   /** Whether the wolves' victim died this night (from the dawn snapshot). */
@@ -34,6 +39,8 @@ interface NightViewProps {
   onConfirmProtected: () => void;
   onSelectWolfTarget: (playerId: string) => void;
   onConfirmWolfTarget: () => void;
+  onSelectInfectTarget: (playerId: string | null) => void;
+  onConfirmInfectTarget: () => void;
   onSelectSeerTarget: (playerId: string) => void;
   onResolve: () => void;
   onDawnContinue: () => void;
@@ -50,6 +57,7 @@ export function NightView({
   step,
   protectedId,
   wolfTargetId,
+  infectTargetId,
   seerTargetId,
   victimName,
   onOpenGate,
@@ -57,6 +65,8 @@ export function NightView({
   onConfirmProtected,
   onSelectWolfTarget,
   onConfirmWolfTarget,
+  onSelectInfectTarget,
+  onConfirmInfectTarget,
   onSelectSeerTarget,
   onResolve,
   onDawnContinue,
@@ -139,6 +149,45 @@ export function NightView({
           >
             Sellar la presa
           </PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (step === "infector-gate") {
+    return (
+      <Frame
+        title="La Madre Camada"
+        body="Pásale el teléfono a la Madre Camada. Que los demás aparten la mirada."
+      >
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={() => onOpenGate("infector-pick")}>
+            Ya lo tengo
+          </PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (step === "infector-pick") {
+    return (
+      <Frame
+        title="La camada crece"
+        body="Convertí a un gato en uno de los tuyos — una vez por partida. Si no sos la Madre Camada o ya lo usaste, pasá sin tocar."
+      >
+        <PlayerGrid
+          players={livingTown(game)}
+          selectedId={infectTargetId}
+          actionLabel={(name) => `Convertir a ${name}`}
+          onSelect={onSelectInfectTarget}
+        />
+        <PassOption
+          label="No convertir / pasar"
+          selected={infectTargetId === null}
+          onClick={() => onSelectInfectTarget(null)}
+        />
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={onConfirmInfectTarget}>Listo</PrimaryButton>
         </div>
       </Frame>
     );
@@ -233,6 +282,56 @@ export function NightView({
       </div>
       <div style={{ marginTop: "auto" }}>
         <PrimaryButton onClick={onDawnContinue}>Volver al callejón</PrimaryButton>
+      </div>
+    </Frame>
+  );
+}
+
+/**
+ * The private, two-beat "you were turned" gate shown to a freshly-infected
+ * player before the dawn announcement. First it hands them the phone, then it
+ * tells them, privately, that they now hunt with the Lykoi.
+ */
+export function TurnedView({
+  name,
+  onContinue,
+}: {
+  name: string;
+  onContinue: () => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+
+  if (!revealed) {
+    return (
+      <Frame title="Algo cambió" body={`Pásale el teléfono a ${name}.`}>
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={() => setRevealed(true)}>
+            Ya lo tengo
+          </PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  return (
+    <Frame
+      title="La mordida"
+      body="Anoche te mordieron. Ahora cazás con los Lykoi."
+    >
+      <div
+        style={{
+          padding: "12px 14px",
+          borderLeft: "2px solid var(--lyk-blood-bright)",
+          background: "rgba(255,255,255,.03)",
+          fontSize: "13px",
+          lineHeight: 1.5,
+          color: "var(--lyk-ink)",
+        }}
+      >
+        Guardá el secreto. A partir de esta noche, la camada es tu manada.
+      </div>
+      <div style={{ marginTop: "auto" }}>
+        <PrimaryButton onClick={onContinue}>Entendido</PrimaryButton>
       </div>
     </Frame>
   );

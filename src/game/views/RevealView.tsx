@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Player } from "../../domain/game/player";
+import { isWolf as isWolfRole } from "../../domain/game/roles";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { roleInfo } from "../roleLabels";
 
@@ -30,7 +31,7 @@ export function RevealView({
 }: RevealViewProps) {
   const [flipped, setFlipped] = useState(false);
   const info = roleInfo(player.role);
-  const isWolf = player.role === "werewolf";
+  const isWolf = isWolfRole(player.role);
 
   return (
     <div

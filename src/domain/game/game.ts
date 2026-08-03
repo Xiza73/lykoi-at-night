@@ -24,6 +24,7 @@ export interface Game {
   readonly status: GameStatus;
   readonly winner: Outcome | null;
   readonly pendingHunter: PlayerId | null;
+  readonly infectionUsed: boolean;
 }
 
 /** Creates a new game: deals roles and opens on the first night. */
@@ -40,6 +41,7 @@ export function createGame(
     status: "in_progress",
     winner: null,
     pendingHunter: null,
+    infectionUsed: false,
   };
 }
 
@@ -107,29 +109,49 @@ export function resolveNight(
   game: Game,
   wolfTargetId: PlayerId | null,
   protectedId: PlayerId | null,
+  infectTargetId: PlayerId | null = null,
 ): Game {
   if (game.phase !== "night" || game.status === "ended") {
     return game;
   }
-  const guardianAlive = game.players.some(
+
+  // 1. Infection (once per game): a living infector turns one townsperson.
+  let players = game.players;
+  let infectionUsed = game.infectionUsed;
+  const infectorAlive = players.some((p) => p.alive && p.role === "infector");
+  if (infectTargetId !== null && !infectionUsed && infectorAlive) {
+    const target = players.find((p) => p.id === infectTargetId);
+    if (target && target.alive && !isWolf(target.role)) {
+      players = players.map((p) =>
+        p.id === target.id ? { ...p, role: "werewolf" as const } : p,
+      );
+      infectionUsed = true;
+    }
+  }
+
+  // 2. The wolves' kill, unless a living guardian warded the victim.
+  const guardianAlive = players.some(
     (player) => player.alive && player.role === "guardian",
   );
   const victim =
     wolfTargetId === null
       ? null
-      : (game.players.find((player) => player.id === wolfTargetId) ?? null);
+      : (players.find((player) => player.id === wolfTargetId) ?? null);
   const saved =
     guardianAlive && protectedId !== null && protectedId === wolfTargetId;
   const dies = victim !== null && victim.alive && !saved;
-  const players = dies
-    ? game.players.map((player) =>
+  const afterKill = dies
+    ? players.map((player) =>
         player.id === victim.id ? eliminate(player) : player,
       )
-    : game.players;
+    : players;
+
+  const base: Game = { ...game, players: afterKill, infectionUsed };
+
   if (dies && victim.role === "hunter") {
-    return { ...game, players, pendingHunter: victim.id };
+    return { ...base, pendingHunter: victim.id };
   }
-  const resolved = resolve({ ...game, players });
+  const resolved = resolve(base);
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
 }
 

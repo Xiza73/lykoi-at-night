@@ -248,7 +248,7 @@ function PresetStep({
         />
         <PresetCard
           title="Avanzado"
-          detail="Clásico + el Cazador de Sombras."
+          detail="Clásico + el Cazador de Sombras y la Madre Camada."
           onSelect={() => onPick("advanced")}
         />
         <PresetCard
@@ -355,15 +355,21 @@ function TableStep({
   onEditCount: () => void;
   onDeal: () => void;
 }) {
-  const upper = maxWolves(count);
+  // The Madre Camada is wolf-aligned, so she counts toward the pack for both the
+  // strict-minority check and the specials-fit check (mirrors the domain).
+  const wolfCount = config.werewolves + (config.infector ? 1 : 0);
+  // The werewolves stepper bound leaves room for the Madre Camada when she is in
+  // play, so the pack (werewolves + infector) never reaches the strict-minority
+  // ceiling maxWolves enforces.
+  const upper = Math.max(1, maxWolves(count) - (config.infector ? 1 : 0));
   const specials =
-    config.werewolves +
+    wolfCount +
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
     (config.hunter ? 1 : 0);
-  const town = count - config.werewolves;
+  const town = count - wolfCount;
   const configValid =
-    config.werewolves >= 1 && config.werewolves < town && specials <= count;
+    config.werewolves >= 1 && wolfCount < town && specials <= count;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
@@ -534,6 +540,11 @@ function RolePicker({
         label="Cazador de Sombras"
         active={config.hunter ?? false}
         onToggle={() => onChange({ ...config, hunter: !config.hunter })}
+      />
+      <RoleToggle
+        label="Madre Camada"
+        active={config.infector ?? false}
+        onToggle={() => onChange({ ...config, infector: !config.infector })}
       />
 
       {showComingSoon

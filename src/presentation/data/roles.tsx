@@ -62,7 +62,7 @@ export const roles: Role[] = [
     faction: "Maldito",
     description:
       "Una vez por partida, convierte a un inocente en uno de los suyos. Él se entera al despertar. Ella, al ver su cara.",
-    implemented: false,
+    implemented: true,
     art: (
       <>
         <path d="M3 17 q9 -9 18 0" />

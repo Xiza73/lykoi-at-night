@@ -27,6 +27,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-blood-bright)",
         desc: "Cada noche, con los otros Lykoi, eligen a quién se lleva la oscuridad.",
       };
+    case "infector":
+      return {
+        name: "Madre Camada",
+        faction: "Maldito",
+        tone: "var(--lyk-blood-bright)",
+        desc: "Una vez por partida, convierte a un inocente en uno de los suyos.",
+      };
     case "seer":
       return {
         name: "Vidente del Alféizar",

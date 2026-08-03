@@ -27,6 +27,7 @@ export interface RoleConfig {
   readonly seer: boolean;
   readonly guardian: boolean;
   readonly hunter?: boolean;
+  readonly infector?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -61,22 +62,23 @@ export function dealRoles(
   if (config.werewolves < 1) {
     throw new RangeError("A game needs at least one werewolf");
   }
+  const wolfCount = config.werewolves + (config.infector ? 1 : 0);
   const specials =
-    config.werewolves +
-    (config.seer ? 1 : 0) +
-    (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0);
+    wolfCount + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0) + (config.hunter ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
-  const town = seats.length - config.werewolves;
-  if (config.werewolves >= town) {
+  const town = seats.length - wolfCount;
+  if (wolfCount >= town) {
     throw new RangeError("Werewolves must be fewer than the townsfolk");
   }
 
   const roles: Role[] = [];
   for (let i = 0; i < config.werewolves; i += 1) {
     roles.push("werewolf");
+  }
+  if (config.infector) {
+    roles.push("infector");
   }
   if (config.seer) {
     roles.push("seer");
