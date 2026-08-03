@@ -37,6 +37,20 @@ describe("configBalance", () => {
     expect(configBalance(withMayor, 6)).toBe(8);
   });
 
+  it("folds in Cupido's -2 when the cupid is in play (a villager seat becomes the -2 Cupido)", () => {
+    const withoutCupid: RoleConfig = { werewolves: 1, seer: true, guardian: true };
+    const withCupid: RoleConfig = {
+      werewolves: 1,
+      seer: true,
+      guardian: true,
+      cupid: true,
+    };
+    // The Cupido takes a villager seat: -2 (cupid) - 1 (lost villager) = -3 swing.
+    expect(configBalance(withCupid, 6)).toBe(configBalance(withoutCupid, 6) - 3);
+    // Absolute: -6 (wolf) + 7 (seer) + 3 (guardian) - 2 (cupid) + 2 villagers = +4.
+    expect(configBalance(withCupid, 6)).toBe(4);
+  });
+
   it("subtracts each extra wolf from the total", () => {
     const oneWolf: RoleConfig = { werewolves: 1, seer: true, guardian: true };
     const twoWolves: RoleConfig = { werewolves: 2, seer: true, guardian: true };

@@ -12,7 +12,8 @@ export function configBalance(config: RoleConfig, count: number): number {
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
     (config.hunter ? 1 : 0) +
-    (config.mayor ? 1 : 0);
+    (config.mayor ? 1 : 0) +
+    (config.cupid ? 1 : 0);
   const villagers = count - specials;
   return (
     config.werewolves * roleWeight("werewolf") +
@@ -20,6 +21,7 @@ export function configBalance(config: RoleConfig, count: number): number {
     (config.guardian ? roleWeight("guardian") : 0) +
     (config.hunter ? roleWeight("hunter") : 0) +
     (config.mayor ? roleWeight("mayor") : 0) +
+    (config.cupid ? roleWeight("cupid") : 0) +
     villagers * roleWeight("villager")
   );
 }

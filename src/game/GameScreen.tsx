@@ -4,6 +4,7 @@ import {
   createGame,
   hunterRevenge,
   lynch,
+  pledgeLovers,
   resolveDayVotes,
   resolveNight,
   resolveWolfVotes,
@@ -66,13 +67,23 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // The action-turn selections for the seated player (reset between turns).
   const [wolfTargetId, setWolfTargetId] = useState<string | null>(null);
   const [seerTargetId, setSeerTargetId] = useState<string | null>(null);
+  // Cupido's running two-cat selection this turn (0, 1 or 2 ids). He confirms
+  // only at exactly two; a third tap replaces the oldest pick.
+  const [cupidPick, setCupidPick] = useState<readonly string[]>([]);
+  // The lovers-reveal pass runs, night 1 only, AFTER the main seat pass once a
+  // Cupido has pledged. This index walks the living seats a second time; the
+  // pack's resolved victim is stashed so resolution happens AFTER the reveal.
+  const [revealSeatIndex, setRevealSeatIndex] = useState(0);
+  const [pendingVictimId, setPendingVictimId] = useState<string | null>(null);
+  const [pendingSpared, setPendingSpared] = useState(false);
   // Snapshot taken the moment resolveNight runs: the name of whoever the night
   // claimed, or null if the umbral held. Drives the dawn message even after the
   // phase has advanced to day.
   const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
-  // The second fallen at dawn: the Cazador's pre-committed shot, when the pack
-  // killed him tonight. Null on an ordinary night with a single (or no) death.
-  const [dawnShotName, setDawnShotName] = useState<string | null>(null);
+  // Every OTHER cat the night claimed alongside the pack's victim, in seat order
+  // (0, 1 or 2 names): the Cazador's pre-committed shot and/or a lover chained by
+  // the bond. Empty on an ordinary single-death (or no-death) night.
+  const [dawnOthersNames, setDawnOthersNames] = useState<readonly string[]>([]);
   // True when a double tie in the pack's vote spared the night (nobody chosen).
   const [nightSpared, setNightSpared] = useState(false);
   // Day sub-flow state, mirroring the night machine. The town first DISCUSSES,
@@ -111,8 +122,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setWolfVotes({});
     setWolfTargetId(null);
     setSeerTargetId(null);
+    setCupidPick([]);
+    setRevealSeatIndex(0);
+    setPendingVictimId(null);
+    setPendingSpared(false);
     setDawnVictimName(null);
-    setDawnShotName(null);
+    setDawnOthersNames([]);
     setNightSpared(false);
   };
 
@@ -158,12 +173,29 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setNightSubStep("action");
   };
 
+  // Toggles a candidate in Cupido's two-cat selection: tapping a chosen cat
+  // removes it; tapping a new one adds it, and once two are held a further tap
+  // replaces the OLDEST pick so the running selection never exceeds two.
+  const handleToggleCupidPick = (playerId: string) => {
+    setCupidPick((prev) => {
+      if (prev.includes(playerId)) {
+        return prev.filter((id) => id !== playerId);
+      }
+      if (prev.length < 2) {
+        return [...prev, playerId];
+      }
+      return [prev[1], playerId];
+    });
+  };
+
   // Resolves a completed vote round: on a first-round tie run a second pass;
   // on a second-round tie nobody dies. Otherwise the plurality victim falls.
-  const resolveRound = (votes: Record<string, string>, round: 1 | 2) => {
-    if (!game) {
-      return;
-    }
+  const resolveRound = (
+    votes: Record<string, string>,
+    round: 1 | 2,
+    snapshot: Game,
+  ) => {
+    const game = snapshot;
     const { victim, tie } = resolveWolfVotes(Object.values(votes));
     if (tie && round === 1) {
       // The pack re-votes: fresh votes, everything else from round 1 stays.
@@ -177,13 +209,46 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     }
     // No-tie (either round) → victim; round-2 tie → nobody dies (victim = null).
     const spared = tie;
-    finishNight(victim, spared);
+    // Night 1 with a Cupido in play: the pack's victim is decided, but before
+    // resolving we run the lovers-reveal pass so each cat privately learns their
+    // bond. The victim is stashed and resolution is deferred to the pass's end.
+    if (game.round === 1 && game.lovers !== null) {
+      setPendingVictimId(victim);
+      setPendingSpared(spared);
+      setRevealSeatIndex(0);
+      setNightSubStep("revealGate");
+      return;
+    }
+    finishNight(victim, spared, game);
+  };
+
+  // Walks the night-1 lovers-reveal pass one living seat at a time; when the last
+  // seat has seen their card, resolves the deferred night (victim + lover bond).
+  const handleRevealContinue = () => {
+    if (nightSubStep === "revealGate") {
+      // Hand-off accepted: show this seat their private lovers card.
+      setNightSubStep("reveal");
+      return;
+    }
+    // subStep === "reveal": advance to the next seat, or resolve when done.
+    const isLast = revealSeatIndex + 1 >= livingSeats.length;
+    if (isLast) {
+      finishNight(pendingVictimId, pendingSpared);
+      return;
+    }
+    setRevealSeatIndex(revealSeatIndex + 1);
+    setNightSubStep("revealGate");
   };
 
   // Runs the single domain resolution and reports the dawn. At night the Cazador
   // never routes to the interactive step: his pre-committed shot resolves inside
   // resolveNight, so a night can now claim TWO players (the hunter + his shot).
-  const finishNight = (victimId: string | null, spared: boolean) => {
+  const finishNight = (
+    victimId: string | null,
+    spared: boolean,
+    snapshot: Game | null = game,
+  ) => {
+    const game = snapshot;
     if (!game) {
       return;
     }
@@ -191,11 +256,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     // victim, fires the Cazador's pre-committed shot if he was the victim, and
     // breaks to the next day — or ends the game. Randomness never enters.
     const resolved = resolveNight(game, victimId, protectedId, hunterShotId);
-    // Name the dawn deaths by ROLE IN THE STORY, not seat order: the primary loss
-    // is always the pack's victim, and the shot is only reported when the player
-    // who fell WAS the Cazador (his pre-committed shot dragging a second player
-    // down). `died(id)` confirms a player was alive before and is dead after —
-    // robust to a null id or an already-dead target.
+    // `died(id)` confirms a player was alive before and is dead after — robust to
+    // a null id or an already-dead target.
     const died = (id: string | null): boolean => {
       if (id === null) {
         return false;
@@ -209,16 +271,18 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
         !after.alive
       );
     };
+    // The primary loss is ALWAYS the pack's victim (named as the cat who "no
+    // volvió al callejón"), never a seat-order pick — the Cazador's shot and the
+    // lover bond only ever produce SECONDARY deaths. `others` is every OTHER cat
+    // who newly fell tonight (the shot target and/or a chained lover), gathered
+    // in SEAT ORDER by diffing alive-before vs alive-after, minus the primary.
     const victim = game.players.find((p) => p.id === victimId);
     const dawnVictim = died(victimId) ? (victim?.name ?? null) : null;
-    // The shot fell only alongside the Cazador: report it when the pack's victim
-    // was the hunter AND his pre-committed shot actually died.
-    const dawnShot =
-      victim?.role === "hunter" && died(hunterShotId)
-        ? (game.players.find((p) => p.id === hunterShotId)?.name ?? null)
-        : null;
+    const others = resolved.players
+      .filter((p) => p.id !== victimId && died(p.id))
+      .map((p) => p.name);
     setDawnVictimName(dawnVictim);
-    setDawnShotName(dawnShot);
+    setDawnOthersNames(others);
     setNightSpared(spared);
     setGame(resolved);
     setStep("night");
@@ -237,13 +301,22 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       votes = { ...wolfVotes, [seated.id]: wolfTargetId };
       setWolfVotes(votes);
     }
+    // Cupido commits his first-night pairing here: the confirm button only fires
+    // at exactly two picks, so the pledge is always well-formed. This flows into
+    // game state so the deferred night resolution (and the reveal pass) see it.
+    let current = game;
+    if (seated.role === "cupid" && game.round === 1 && cupidPick.length === 2) {
+      current = pledgeLovers(game, cupidPick[0], cupidPick[1]);
+      setGame(current);
+    }
     // Clear the per-turn selections before the next player takes the phone.
     setWolfTargetId(null);
     setSeerTargetId(null);
+    setCupidPick([]);
 
     const isLast = seatIndex + 1 >= livingSeats.length;
     if (isLast) {
-      resolveRound(votes, nightRound);
+      resolveRound(votes, nightRound, current);
       return;
     }
     setSeatIndex(seatIndex + 1);
@@ -506,11 +579,17 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     }
 
     if (step === "night") {
+      // The lovers-reveal pass walks its own seat index; the main pass and the
+      // action turn use `seatIndex`. Pick the right seated cat per sub-step.
+      const nightSeated =
+        nightSubStep === "revealGate" || nightSubStep === "reveal"
+          ? livingSeats[revealSeatIndex]
+          : seated;
       return (
         <NightView
           game={game}
           subStep={nightSubStep}
-          seated={seated}
+          seated={nightSeated}
           round={nightRound}
           protectedId={protectedId}
           lastWarded={game.lastWarded}
@@ -518,15 +597,18 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           wolfVotes={wolfVotes}
           seerTargetId={seerTargetId}
           wolfTargetId={wolfTargetId}
+          cupidPick={cupidPick}
           victimName={dawnVictimName}
-          shotName={dawnShotName}
+          othersNames={dawnOthersNames}
           spared={nightSpared}
           onOpenGate={handleOpenGate}
           onSelectProtected={setProtectedId}
           onSelectHunterShot={setHunterShotId}
           onSelectSeerTarget={setSeerTargetId}
           onSelectWolfTarget={setWolfTargetId}
+          onToggleCupidPick={handleToggleCupidPick}
           onConfirmAction={handleConfirmAction}
+          onRevealContinue={handleRevealContinue}
           onDawnContinue={handleDawnContinue}
         />
       );

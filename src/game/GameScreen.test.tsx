@@ -126,6 +126,42 @@ async function openGate(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
+ * Fills a six-seat Cazador + Cupido lobby via Personalizado (Clásico + the
+ * Cazador de Sombras and Cupido del Callejón toggles) and deals. With the
+ * identity shuffle the roles fall in seat order (push order:
+ * wolf, seer, guardian, hunter, cupid, then villagers): Ana (p1) wolf, Beto (p2)
+ * seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva (p5) the Cupido, Fabi
+ * (p6) villager.
+ */
+async function fillHunterCupidLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
+  await user.click(screen.getByRole("button", { name: /^cupido del callejón$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
+/**
+ * Fills a six-seat Cupido lobby via Personalizado (Clásico + the Cupido del
+ * Callejón toggle) and deals. With the identity shuffle the roles fall in seat
+ * order: Ana (p1) wolf, Beto (p2) seer, Caro (p3) guardian, Dario (p4) the
+ * Cupido, Eva/Fabi villagers.
+ */
+async function fillCupidLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Personalizado starts from the Clásico hand; add the Cupido del Callejón.
+  await user.click(screen.getByRole("button", { name: /^cupido del callejón$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
+/**
  * Drives one day's SECRET vote pass from the discussion board. `ballots` maps a
  * living player's NAME to who they vote for — a name, or null to abstain — in
  * SEAT ORDER (the order the phone travels). Opens the vote, walks each living
@@ -611,13 +647,13 @@ describe("GameScreen", () => {
 
     // No interactive revenge step: dawn reports BOTH the Cazador and his shot,
     // naming DARIO (the fallen Cazador) as the one who "no volvió" and BETO (his
-    // shot, though seated earlier) as the one "se llevó ... con él". Seat-order
+    // shot, though seated earlier) as the one carried off "consigo". Seat-order
     // naming would invert these — this assertion catches that inversion.
     expect(
       screen.queryByRole("heading", { name: /el cazador de sombras cae/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/dario no volvió al callejón — y se llevó a beto con él/i),
+      screen.getByText(/dario no volvió al callejón, y se llevó consigo a beto/i),
     ).toBeInTheDocument();
 
     // Into the day's discussion board — both are fallen tiles.
@@ -663,7 +699,7 @@ describe("GameScreen", () => {
       screen.getByText(/^amanece\. dario no volvió al callejón\.$/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/y se llevó a .+ con él/i),
+      screen.queryByText(/y se llevó consigo/i),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
@@ -862,5 +898,210 @@ describe("GameScreen", () => {
     expect(
       screen.getByText(/no podés cuidar a fabi otra vez/i),
     ).toBeInTheDocument();
+  });
+
+  it("the Cupido links two cats on night 1; a lovers-reveal pass tells each their partner; killing one chains the other", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillCupidLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1, main pass. Ana (wolf) votes Eva (a lover-to-be), Beto (seer) reads
+    // Fabi, Caro (guardian) wards nobody, Dario (Cupido) links Eva and Fabi,
+    // Eva/Fabi pass.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Cupido): links Eva and Fabi. Confirm is disabled until
+    // exactly two are chosen.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos cupido/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /enamorar a estos dos/i }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /enamorar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /enamorar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /enamorar a estos dos/i }));
+
+    // Seats 5-6 — Eva, Fabi (villagers): plain pass, completing the main pass.
+    for (let i = 0; i < 2; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Now the lovers-reveal pass runs (night 1 only). Six living seats each take a
+    // gate then a private card. Ana/Beto/Caro/Dario are NOT in love; Eva and Fabi
+    // learn they are paired with each other.
+    // Seat 1 — Ana: not in love.
+    await openGate(user);
+    expect(
+      screen.getByText(/no estás enamorado esta noche/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    // Seats 2-4 — Beto, Caro, Dario: also not in love.
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      expect(
+        screen.getByText(/no estás enamorado esta noche/i),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+    // Seat 5 — Eva: enamorada de Fabi.
+    await openGate(user);
+    expect(
+      screen.getByText(/estás enamorado de fabi/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    // Seat 6 — Fabi: enamorada de Eva. This is the last seat: the night resolves.
+    await openGate(user);
+    expect(
+      screen.getByText(/estás enamorado de eva/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Dawn: the pack killed Eva, and the lover bond dragged Fabi down with her.
+    expect(
+      screen.getByText(/eva no volvió al callejón, y se llevó consigo a fabi/i),
+    ).toBeInTheDocument();
+
+    // Into the day's board — both lovers are fallen tiles.
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/eva \(caído\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/fabi \(caído\)/i)).toBeInTheDocument();
+  });
+
+  it("the Cupido has no pairing action on night 2 — he just passes", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillCupidLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1 main pass: wolf abstains-by-warding (kills nobody). Ana votes Fabi,
+    // Beto reads Fabi, Caro (guardian) wards Fabi (so the wolf's target survives),
+    // Dario (Cupido) links Ana and Beto (two cats who will both survive), Eva/Fabi
+    // pass.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por fabi/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards Fabi
+    await user.click(screen.getByRole("button", { name: /curar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Dario (Cupido): links Ana and Beto
+    await user.click(screen.getByRole("button", { name: /enamorar a ana/i }));
+    await user.click(screen.getByRole("button", { name: /enamorar a beto/i }));
+    await user.click(screen.getByRole("button", { name: /enamorar a estos dos/i }));
+    for (let i = 0; i < 2; i += 1) {
+      await openGate(user); // Eva, Fabi pass
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Lovers-reveal pass (six seats): everyone taps through. Ana & Beto are paired.
+    for (let i = 0; i < 6; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // The ward held: nobody fell. Into day 1, then skip straight to night 2.
+    expect(screen.getByText(/nadie cayó esta noche/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
+
+    // Night 2: walk to the Cupido's seat. Ana (wolf) votes Eva, Beto reads Eva,
+    // Caro wards nobody.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 4 — Dario (the Cupido) on NIGHT 2: no pairing screen, just the sleep
+    // pass. The two-select confirm must be gone, and instead of the bare "Sos
+    // Cupido" action heading he sees the villager-style sleep screen naming his
+    // full role title ("Sos Cupido del Callejón").
+    await openGate(user);
+    expect(
+      screen.queryByRole("button", { name: /enamorar a estos dos/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /sos cupido del callejón/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+  });
+
+  it("a triple-death night (Cazador who is also a lover, with a shot) names ALL three fallen at dawn", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterCupidLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Seats: Ana (wolf), Beto (seer), Caro (guardian), Dario (Cazador), Eva
+    // (Cupido), Fabi (villager).
+    // Main pass: Ana kills Dario (the Cazador), Beto reads Fabi, Caro wards
+    // nobody, Dario pre-commits his shot on Fabi, Eva (Cupido) links Dario and
+    // Beto, Fabi passes. Three cats will fall: Dario (the pack's victim), Fabi
+    // (his shot) and Beto (Dario's lover, chained by the bond).
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Dario (Cazador): pre-commits Fabi
+    await user.click(screen.getByRole("button", { name: /llevarse a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Eva (Cupido): links Dario and Beto
+    await user.click(screen.getByRole("button", { name: /enamorar a dario/i }));
+    await user.click(screen.getByRole("button", { name: /enamorar a beto/i }));
+    await user.click(screen.getByRole("button", { name: /enamorar a estos dos/i }));
+    await openGate(user); // Fabi (villager): pass
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Lovers-reveal pass (six seats): everyone taps through.
+    for (let i = 0; i < 6; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Dawn: Dario is the primary loss (the wolves' victim). Both his shot (Fabi)
+    // and his lover (Beto) are carried off "consigo", named in seat order.
+    expect(
+      screen.getByText(
+        /dario no volvió al callejón, y se llevó consigo a beto y fabi/i,
+      ),
+    ).toBeInTheDocument();
+
+    // The day board shows all three as fallen tiles.
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/dario \(caído\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/beto \(caído\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/fabi \(caído\)/i)).toBeInTheDocument();
   });
 });

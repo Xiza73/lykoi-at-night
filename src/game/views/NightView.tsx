@@ -14,8 +14,18 @@ import { CatIcon } from "../components/CatIcon";
  * step reports the outcome. Because the flow is keyed on the seat's role — not
  * on which powers exist — a Básico game (only wolves + villagers) shows no
  * seer/guardian screens at all: those players simply pass.
+ *
+ * When a Cupido is in play, night 1 runs a SECOND seat-order pass after the
+ * main one: each living player takes a "revealGate" hand-off and then a private
+ * "reveal" screen telling a lover who their partner is (or a non-lover that they
+ * are unpaired), so the pairing is disclosed without singling anyone out.
  */
-export type NightSubStep = "gate" | "action" | "dawn";
+export type NightSubStep =
+  | "gate"
+  | "action"
+  | "revealGate"
+  | "reveal"
+  | "dawn";
 
 interface NightViewProps {
   game: Game;
@@ -41,10 +51,19 @@ interface NightViewProps {
   seerTargetId: string | null;
   /** This wolf's chosen prey for the current turn, if any. */
   wolfTargetId: string | null;
-  /** The first fallen at dawn (the wolves' victim), or null if none fell. */
+  /**
+   * Cupido's running selection this turn: the ids he has tapped so far (0, 1 or
+   * 2). He confirms only at exactly two. Empty for every other role.
+   */
+  cupidPick: readonly string[];
+  /** The primary fallen at dawn (the wolves' victim), or null if none fell. */
   victimName: string | null;
-  /** The second fallen at dawn: the Cazador's shot when the pack killed him. */
-  shotName: string | null;
+  /**
+   * Every OTHER cat the night claimed alongside the victim, in seat order (0, 1
+   * or 2 names): the Cazador's pre-committed shot and/or a lover chained by the
+   * bond.
+   */
+  othersNames: readonly string[];
   /** Whether the double-tie spared the night (nobody was chosen). */
   spared: boolean;
   onOpenGate: () => void;
@@ -52,8 +71,12 @@ interface NightViewProps {
   onSelectHunterShot: (playerId: string | null) => void;
   onSelectSeerTarget: (playerId: string) => void;
   onSelectWolfTarget: (playerId: string) => void;
+  /** Toggles a candidate in Cupido's two-cat selection (tap to add / remove). */
+  onToggleCupidPick: (playerId: string) => void;
   /** Confirms the current player's action and passes on (or resolves). */
   onConfirmAction: () => void;
+  /** Advances the lovers-reveal pass to the next living seat (or resolves). */
+  onRevealContinue: () => void;
   onDawnContinue: () => void;
 }
 
@@ -75,22 +98,25 @@ export function NightView({
   wolfVotes,
   seerTargetId,
   wolfTargetId,
+  cupidPick,
   victimName,
-  shotName,
+  othersNames,
   spared,
   onOpenGate,
   onSelectProtected,
   onSelectHunterShot,
   onSelectSeerTarget,
   onSelectWolfTarget,
+  onToggleCupidPick,
   onConfirmAction,
+  onRevealContinue,
   onDawnContinue,
 }: NightViewProps) {
   if (subStep === "dawn") {
     return (
       <Dawn
         victimName={victimName}
-        shotName={shotName}
+        othersNames={othersNames}
         spared={spared}
         onContinue={onDawnContinue}
       />
@@ -103,14 +129,45 @@ export function NightView({
     return null;
   }
 
-  if (subStep === "gate") {
+  if (subStep === "gate" || subStep === "revealGate") {
+    const onGate = subStep === "gate" ? onOpenGate : onRevealContinue;
     return (
       <Frame
         title={`Le toca a ${seated.name}`}
         body={`Pásale el teléfono a ${seated.name}. Que los demás aparten la mirada.`}
       >
         <div style={{ marginTop: "auto" }}>
-          <PrimaryButton onClick={onOpenGate}>Ya lo tengo</PrimaryButton>
+          <PrimaryButton onClick={onGate}>Ya lo tengo</PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (subStep === "reveal") {
+    // The lovers-reveal pass: this seat learns, privately, whether they were
+    // linked and by whom — never singling anyone out (everyone taps through).
+    const partnerId =
+      game.lovers?.find((id) => id !== seated.id) ??
+      // Guard: if somehow both entries equal this seat, treat as unpaired.
+      null;
+    const paired =
+      game.lovers != null &&
+      game.lovers.includes(seated.id) &&
+      partnerId !== null;
+    const partnerName = partnerId
+      ? game.players.find((p) => p.id === partnerId)?.name
+      : undefined;
+    return (
+      <Frame
+        title={paired ? "Un lazo en la oscuridad" : "La noche sigue"}
+        body={
+          paired && partnerName
+            ? `Estás enamorado de ${partnerName}. Si uno cae, el otro también.`
+            : "No estás enamorado esta noche."
+        }
+      >
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={onRevealContinue}>Listo</PrimaryButton>
         </div>
       </Frame>
     );
@@ -128,10 +185,12 @@ export function NightView({
       wolfVotes={wolfVotes}
       seerTargetId={seerTargetId}
       wolfTargetId={wolfTargetId}
+      cupidPick={cupidPick}
       onSelectProtected={onSelectProtected}
       onSelectHunterShot={onSelectHunterShot}
       onSelectSeerTarget={onSelectSeerTarget}
       onSelectWolfTarget={onSelectWolfTarget}
+      onToggleCupidPick={onToggleCupidPick}
       onConfirmAction={onConfirmAction}
     />
   );
@@ -148,10 +207,12 @@ function ActionTurn({
   wolfVotes,
   seerTargetId,
   wolfTargetId,
+  cupidPick,
   onSelectProtected,
   onSelectHunterShot,
   onSelectSeerTarget,
   onSelectWolfTarget,
+  onToggleCupidPick,
   onConfirmAction,
 }: {
   game: Game;
@@ -163,10 +224,12 @@ function ActionTurn({
   wolfVotes: Record<string, string>;
   seerTargetId: string | null;
   wolfTargetId: string | null;
+  cupidPick: readonly string[];
   onSelectProtected: (playerId: string | null) => void;
   onSelectHunterShot: (playerId: string | null) => void;
   onSelectSeerTarget: (playerId: string) => void;
   onSelectWolfTarget: (playerId: string) => void;
+  onToggleCupidPick: (playerId: string) => void;
   onConfirmAction: () => void;
 }) {
   const living = game.players.filter((player) => player.alive);
@@ -328,7 +391,48 @@ function ActionTurn({
     );
   }
 
-  // villager: no night action.
+  // Cupido acts ONLY on the first night: he links two cats (himself allowed) as
+  // lovers for the whole game. On any later night he has no action and just
+  // passes (falls through to the villager screen below).
+  if (seated.role === "cupid" && game.round === 1) {
+    // Candidates are ALL the living cats, including Cupido himself. He taps to
+    // select exactly two; a tap toggles, and once two are chosen a further tap
+    // on a new cat replaces the oldest pick (see the container's toggle logic).
+    const chosen = cupidPick
+      .map((id) => game.players.find((p) => p.id === id)?.name)
+      .filter((name): name is string => name !== undefined);
+    return (
+      <Frame
+        title="Sos Cupido"
+        body="Esta primera noche enlazás a dos gatos para toda la partida. Podés incluirte. Si uno cae, el otro lo sigue."
+      >
+        {chosen.length > 0 ? (
+          <Note tone="var(--lyk-gold)">
+            {chosen.length === 2
+              ? `Vas a enamorar a ${chosen[0]} y ${chosen[1]}.`
+              : `Elegiste a ${chosen[0]}. Falta uno más.`}
+          </Note>
+        ) : null}
+        <PlayerGrid
+          players={living}
+          selectedId={null}
+          multiSelectedIds={cupidPick}
+          actionLabel={(name) => `Enamorar a ${name}`}
+          onSelect={onToggleCupidPick}
+        />
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton
+            onClick={onConfirmAction}
+            disabled={cupidPick.length !== 2}
+          >
+            Enamorar a estos dos
+          </PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  // villager (and Cupido on later nights): no night action.
   return (
     <Frame
       title={`Sos ${roleInfo(seated.role).name}`}
@@ -343,32 +447,38 @@ function ActionTurn({
 
 /**
  * The dawn report, after the container has resolved the pack's votes. Reports
- * one fallen — or TWO, when the Cazador was killed and his pre-committed shot
- * took someone with him.
+ * the pack's victim as the primary loss, plus every OTHER cat the night claimed
+ * alongside them (the Cazador's shot and/or a lover chained by the bond) — 0, 1
+ * or 2 further names, in seat order. The copy is gender-neutral ("consigo").
  */
 function Dawn({
   victimName,
-  shotName,
+  othersNames,
   spared,
   onContinue,
 }: {
   victimName: string | null;
-  shotName: string | null;
+  othersNames: readonly string[];
   spared: boolean;
   onContinue: () => void;
 }) {
   const fell = victimName !== null;
-  const bothFell = fell && shotName !== null;
-  const body = bothFell
-    ? `Amanece. ${victimName} no volvió al callejón — y se llevó a ${shotName} con él.`
+  // A gender-neutral join of the other fallen: "A", "A y B" (never more than two).
+  const others =
+    othersNames.length === 2
+      ? `${othersNames[0]} y ${othersNames[1]}`
+      : (othersNames[0] ?? "");
+  const tookOthers = fell && othersNames.length > 0;
+  const body = tookOthers
+    ? `Amanece. ${victimName} no volvió al callejón, y se llevó consigo a ${others}.`
     : fell
       ? `Amanece. ${victimName} no volvió al callejón.`
       : "Amaneció sin bajas.";
   return (
     <Frame title="Amanece" body={body}>
       <Note tone={fell ? "var(--lyk-blood-bright)" : "var(--lyk-gold)"}>
-        {bothFell
-          ? `La oscuridad se llevó a ${victimName}, y su furia arrastró a ${shotName}.`
+        {tookOthers
+          ? `La oscuridad se llevó a ${victimName}, y arrastró consigo a ${others}.`
           : fell
             ? `La oscuridad se llevó a ${victimName}.`
             : spared
@@ -490,11 +600,14 @@ function PassOption({
 function PlayerGrid({
   players,
   selectedId,
+  multiSelectedIds,
   actionLabel,
   onSelect,
 }: {
   players: readonly Player[];
   selectedId: string | null;
+  /** When present, ANY id in this set is highlighted (multi-select grids). */
+  multiSelectedIds?: readonly string[];
   actionLabel: (name: string) => string;
   onSelect: (playerId: string) => void;
 }) {
@@ -509,7 +622,9 @@ function PlayerGrid({
       }}
     >
       {players.map((player) => {
-        const selected = player.id === selectedId;
+        const selected =
+          player.id === selectedId ||
+          (multiSelectedIds?.includes(player.id) ?? false);
         const tone = selected ? "var(--lyk-gold)" : "var(--lyk-faint)";
         return (
           <button

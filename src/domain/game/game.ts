@@ -30,6 +30,13 @@ export interface Game {
    * nights so the Curandero cannot watch over the same cat two nights running.
    */
   readonly lastWarded: PlayerId | null;
+  /**
+   * The two cats Cupido linked as lovers on the first night, or null if no
+   * Cupido was dealt / he has not pledged yet. When either lover dies by ANY
+   * cause the other dies immediately too (see `applyLoverBond`). This is not a
+   * faction: each lover still wins with their own camp.
+   */
+  readonly lovers: readonly [PlayerId, PlayerId] | null;
 }
 
 /** Creates a new game: deals roles and opens on the first night. */
@@ -47,7 +54,45 @@ export function createGame(
     winner: null,
     pendingHunter: null,
     lastWarded: null,
+    lovers: null,
   };
+}
+
+/**
+ * Commits Cupido's first-night pairing: links `a` and `b` as lovers. The two
+ * must be DISTINCT (the UI enforces this; we guard defensively) — pairing a cat
+ * with themselves returns the game unchanged.
+ */
+export function pledgeLovers(game: Game, a: PlayerId, b: PlayerId): Game {
+  if (a === b) {
+    return game;
+  }
+  return { ...game, lovers: [a, b] };
+}
+
+/**
+ * The lover bond, applied AFTER a death path's direct eliminations and BEFORE
+ * the win is re-evaluated. If exactly one of the pledged pair is dead while the
+ * other is alive, the survivor is eliminated too; otherwise the players are
+ * returned unchanged. There is only one pair, so the bond never cascades beyond
+ * it — a partner killed by the bond triggers no further bond or revenge.
+ */
+export function applyLoverBond(
+  players: readonly Player[],
+  lovers: readonly [PlayerId, PlayerId] | null,
+): readonly Player[] {
+  if (lovers === null) {
+    return players;
+  }
+  const [a, b] = lovers;
+  const first = players.find((p) => p.id === a);
+  const second = players.find((p) => p.id === b);
+  if (!first || !second || first.alive === second.alive) {
+    return players;
+  }
+  // Exactly one lover is dead: the survivor follows.
+  const survivorId = first.alive ? a : b;
+  return players.map((p) => (p.id === survivorId ? eliminate(p) : p));
 }
 
 /** Living werewolves. */
@@ -157,6 +202,9 @@ export function resolveNight(
       p.id === hunterShotId && p.alive ? eliminate(p) : p,
     );
   }
+  // The lover bond runs AFTER both the pack's victim and the Cazador's shot, so
+  // a lover among either death drags their partner down before the win is scored.
+  players = applyLoverBond(players, game.lovers);
   // Record this night's effective ward so the next night can reject a repeat.
   // Threaded into the single resolved snapshot so every return path below (ended,
   // hunter-shot, or advanced to day) carries it.
@@ -176,9 +224,13 @@ export function lynch(game: Game, targetId: PlayerId): Game {
   if (!target || !target.alive) {
     return game;
   }
-  const players = game.players.map((player) =>
+  const banished = game.players.map((player) =>
     player.id === targetId ? eliminate(player) : player,
   );
+  // The lover bond runs after the banishment: a banished lover drags their
+  // partner down. Only the ORIGINAL banished target's role decides the hunter
+  // routing — the partner killed by the bond never triggers its own revenge.
+  const players = applyLoverBond(banished, game.lovers);
   if (target.role === "hunter") {
     return { ...game, players, pendingHunter: target.id };
   }
@@ -201,12 +253,15 @@ export function hunterRevenge(game: Game, targetId: PlayerId | null): Game {
     targetId === null
       ? null
       : (game.players.find((player) => player.id === targetId) ?? null);
-  const players =
+  const shot =
     target && target.alive
       ? game.players.map((player) =>
           player.id === target.id ? eliminate(player) : player,
         )
       : game.players;
+  // The bond runs after the revenge shot: a lover taken by the Cazador drags
+  // their partner down. The bond never spawns a further revenge.
+  const players = applyLoverBond(shot, game.lovers);
   const cleared: Game = { ...game, players, pendingHunter: null };
   const resolved = resolve(cleared);
   return resolved.status === "ended" ? resolved : advancePhase(resolved);

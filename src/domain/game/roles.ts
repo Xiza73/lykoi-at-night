@@ -5,6 +5,7 @@ export type Role =
   | "guardian"
   | "hunter"
   | "mayor"
+  | "cupid"
   | "villager";
 
 /** The two teams. */
@@ -31,6 +32,7 @@ export const ROLE_WEIGHT: Record<Role, number> = {
   guardian: 3, // becomes the Curandero later; same weight
   hunter: 3, // the Cazador; same weight
   mayor: 2, // the Alcalde: a conditional day-vote tie-break
+  cupid: -2, // Cupido: the lover bond is a liability the pack can exploit
   villager: 1,
 };
 

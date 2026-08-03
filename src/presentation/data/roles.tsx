@@ -104,6 +104,21 @@ export const roles: Role[] = [
     ),
   },
   {
+    id: "cupido",
+    name: "Cupido del Callejón",
+    faction: "Vecindario",
+    description:
+      "La primera noche enlaza a dos gatos enamorados. Si uno cae, el otro lo sigue a la misma suerte.",
+    implemented: true,
+    art: (
+      <>
+        <path d="M12 20 C6 15 3 11 3 8 A3 3 0 0 1 9 6.5 L12 9 L15 6.5 A3 3 0 0 1 21 8 C21 11 18 15 12 20z" />
+        <path d="M4 6 L20 18" opacity=".5" />
+        <path d="M18 4 l3 -1 l-1 3z" opacity=".7" />
+      </>
+    ),
+  },
+  {
     id: "domestico",
     name: "Gato Doméstico",
     faction: "Vecindario",

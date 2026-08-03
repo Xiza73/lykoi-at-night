@@ -223,6 +223,7 @@ const SPECIAL_LABELS: { key: keyof RoleConfig; label: string }[] = [
   { key: "guardian", label: "Curandero" },
   { key: "hunter", label: "Cazador" },
   { key: "mayor", label: "Alcalde" },
+  { key: "cupid", label: "Cupido" },
 ];
 
 /** A one-line summary of what a preset deals at the current player count. */
@@ -393,7 +394,8 @@ function TableStep({
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
     (config.hunter ? 1 : 0) +
-    (config.mayor ? 1 : 0);
+    (config.mayor ? 1 : 0) +
+    (config.cupid ? 1 : 0);
   const town = count - wolfCount;
   const configValid =
     config.werewolves >= 1 && wolfCount < town && specials <= count;
@@ -676,6 +678,11 @@ function RolePicker({
         label="Alcalde del Callejón"
         active={config.mayor ?? false}
         onToggle={() => onChange({ ...config, mayor: !config.mayor })}
+      />
+      <RoleToggle
+        label="Cupido del Callejón"
+        active={config.cupid ?? false}
+        onToggle={() => onChange({ ...config, cupid: !config.cupid })}
       />
 
       {showComingSoon
