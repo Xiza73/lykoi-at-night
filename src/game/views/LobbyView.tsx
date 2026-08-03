@@ -1,39 +1,54 @@
-import { MAX_PLAYERS, MIN_PLAYERS } from "../../domain/game/player";
+import { MAX_PLAYERS, MIN_PLAYERS, type RoleConfig } from "../../domain/game/player";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
-
-/** Bounds for the number of Lykoi/witches the host can pick. */
-export const MIN_WITCHES = 2;
-export const MAX_WITCHES = 5;
+import { maxWolves } from "../roleLabels";
 
 interface LobbyViewProps {
   names: readonly string[];
-  witchCount: number;
+  roleConfig: RoleConfig;
   onAddSeat: () => void;
   onRemoveSeat: (index: number) => void;
   onRenameSeat: (index: number, name: string) => void;
-  onWitchCountChange: (witchCount: number) => void;
+  onRoleConfigChange: (roleConfig: RoleConfig) => void;
   onDeal: () => void;
 }
 
 /**
- * Pass-and-play lobby: edit the roster (4-12 seats) and choose how many Lykoi
- * hide among them, then deal. No room code — this is one shared device.
+ * Pass-and-play lobby: edit the roster (4-12 seats) and choose which roles are
+ * in play (how many Lykoi, plus the optional Seer and Guardian), then deal.
+ * No room code — this is one shared device.
  */
 export function LobbyView({
   names,
-  witchCount,
+  roleConfig,
   onAddSeat,
   onRemoveSeat,
   onRenameSeat,
-  onWitchCountChange,
+  onRoleConfigChange,
   onDeal,
 }: LobbyViewProps) {
   const count = names.length;
   const canAdd = count < MAX_PLAYERS;
   const canRemove = count > MIN_PLAYERS;
   const allNamed = names.every((name) => name.trim().length > 0);
-  const canDeal = count >= MIN_PLAYERS && witchCount < count && allNamed;
+  const specials =
+    roleConfig.werewolves + (roleConfig.seer ? 1 : 0) + (roleConfig.guardian ? 1 : 0);
+  const town = count - roleConfig.werewolves;
+  const configValid =
+    roleConfig.werewolves >= 1 &&
+    roleConfig.werewolves < town &&
+    specials <= count;
+  const canDeal = count >= MIN_PLAYERS && allNamed && configValid;
+
+  const townRoles = [
+    roleConfig.seer ? "Vidente" : null,
+    roleConfig.guardian ? "Guardián" : null,
+  ].filter((role): role is string => role !== null);
+  const summary = [
+    `${count} gatos`,
+    `${roleConfig.werewolves} Lykoi`,
+    ...townRoles,
+  ].join(" · ");
 
   return (
     <div
@@ -65,7 +80,11 @@ export function LobbyView({
         </p>
       </div>
 
-      <WitchPicker value={witchCount} max={count} onChange={onWitchCountChange} />
+      <RolePicker
+        roleConfig={roleConfig}
+        playerCount={count}
+        onChange={onRoleConfigChange}
+      />
 
       <div
         style={{
@@ -95,18 +114,13 @@ export function LobbyView({
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
             fontSize: "12px",
+            letterSpacing: ".04em",
             color: "var(--lyk-faint)",
+            textAlign: "center",
           }}
         >
-          <span>
-            {count} de {MAX_PLAYERS} gatos
-          </span>
-          <span>
-            {witchCount} Lykoi entre ellos
-          </span>
+          {summary}
         </div>
         <PrimaryButton onClick={onDeal} disabled={!canDeal}>
           Repartir los roles
@@ -116,68 +130,130 @@ export function LobbyView({
   );
 }
 
-function WitchPicker({
-  value,
-  max,
+function RolePicker({
+  roleConfig,
+  playerCount,
   onChange,
 }: {
-  value: number;
-  max: number;
-  onChange: (value: number) => void;
+  roleConfig: RoleConfig;
+  playerCount: number;
+  onChange: (roleConfig: RoleConfig) => void;
 }) {
-  // Witches must stay below the player count; the domain rejects >= count.
-  const upper = Math.min(MAX_WITCHES, Math.max(MIN_WITCHES, max - 1));
+  const upper = maxWolves(playerCount);
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "12px",
+        flexDirection: "column",
+        gap: "10px",
         padding: "12px 16px",
         border: "1px dashed #3a3833",
         background: "rgba(217,164,76,.04)",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "10px",
+            letterSpacing: ".26em",
+            textTransform: "uppercase",
+            color: "var(--lyk-faint)",
+          }}
+        >
+          Lykoi
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <StepButton
+            label="Menos Lykoi"
+            disabled={roleConfig.werewolves <= 1}
+            onClick={() => onChange({ ...roleConfig, werewolves: roleConfig.werewolves - 1 })}
+          >
+            −
+          </StepButton>
+          <span
+            aria-label="Número de Lykoi"
+            style={{
+              fontFamily: "var(--lyk-serif)",
+              fontSize: "26px",
+              color: "var(--lyk-gold)",
+              minWidth: "20px",
+              textAlign: "center",
+            }}
+          >
+            {roleConfig.werewolves}
+          </span>
+          <StepButton
+            label="Más Lykoi"
+            disabled={roleConfig.werewolves >= upper}
+            onClick={() => onChange({ ...roleConfig, werewolves: roleConfig.werewolves + 1 })}
+          >
+            +
+          </StepButton>
+        </div>
+      </div>
+
+      <RoleToggle
+        label="Vidente"
+        active={roleConfig.seer}
+        onToggle={() => onChange({ ...roleConfig, seer: !roleConfig.seer })}
+      />
+      <RoleToggle
+        label="Guardián del Umbral"
+        active={roleConfig.guardian}
+        onToggle={() => onChange({ ...roleConfig, guardian: !roleConfig.guardian })}
+      />
+    </div>
+  );
+}
+
+function RoleToggle({
+  label,
+  active,
+  onToggle,
+}: {
+  label: string;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onToggle}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px",
+        padding: "9px 12px",
+        background: active ? "rgba(198,161,90,.08)" : "rgba(255,255,255,.015)",
+        border: `1px solid ${active ? "var(--lyk-gold)" : "#2a2d33"}`,
+        color: active ? "var(--lyk-gold)" : "var(--lyk-muted-2)",
+        fontFamily: "var(--lyk-sans)",
+        fontSize: "12.5px",
+        cursor: "pointer",
+        transition: "border-color .2s, color .2s, background .2s",
+      }}
+    >
+      <span>{label}</span>
       <span
         style={{
           fontSize: "10px",
-          letterSpacing: ".26em",
+          letterSpacing: ".18em",
           textTransform: "uppercase",
-          color: "var(--lyk-faint)",
         }}
       >
-        Lykoi
+        {active ? "En juego" : "Fuera"}
       </span>
-      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-        <StepButton
-          label="Menos Lykoi"
-          disabled={value <= MIN_WITCHES}
-          onClick={() => onChange(value - 1)}
-        >
-          −
-        </StepButton>
-        <span
-          aria-label="Número de Lykoi"
-          style={{
-            fontFamily: "var(--lyk-serif)",
-            fontSize: "26px",
-            color: "var(--lyk-gold)",
-            minWidth: "20px",
-            textAlign: "center",
-          }}
-        >
-          {value}
-        </span>
-        <StepButton
-          label="Más Lykoi"
-          disabled={value >= upper}
-          onClick={() => onChange(value + 1)}
-        >
-          +
-        </StepButton>
-      </div>
-    </div>
+    </button>
   );
 }
 

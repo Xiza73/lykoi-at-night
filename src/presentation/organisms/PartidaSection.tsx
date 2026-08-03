@@ -68,7 +68,7 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
             }}
           >
             Reparte los roles en secreto y pasa el teléfono de gato en gato. La
-            app lleva las marcas, los juicios y los cadáveres. Tú solo tienes que
+            app lleva las noches, los votos y los cadáveres. Tú solo tienes que
             mentir bien.
           </p>
           <div
@@ -87,7 +87,7 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
             {[
               "Anota a cada gato y elige cuántos Lykoi se esconden.",
               "Cada uno mira su rol a solas y pasa el teléfono.",
-              "Señalen en voz alta; con siete marcas empieza el juicio.",
+              "De día, discutan y voten a quién desterrar del callejón.",
             ].map((line) => (
               <div
                 key={line}

@@ -1,21 +1,22 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameScreen } from "./GameScreen";
-import { ACCUSATIONS_FOR_TRIAL } from "../domain/game/game";
 import type { Shuffle } from "../domain/game/shuffle";
 
 /**
- * Identity shuffle: leaves order untouched. With 5 players and witchCount 2 the
- * first two seats (p1, p2) become witches, and each witch's "witch" tryal card
- * stays at index 0 — making outcomes fully deterministic.
+ * Identity shuffle: leaves seat order untouched. With 6 players and config
+ * {werewolves: 1, seer: true, guardian: true} the roles are dealt in order —
+ * so Ana (p1) is the werewolf, Beto (p2) the seer, Caro (p3) the guardian, and
+ * Dario/Eva/Fabi are villagers. Fully deterministic.
  */
 const identityShuffle: Shuffle = (items) => [...items];
 
-const NAMES = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
+const NAMES = ["Ana", "Beto", "Caro", "Dario", "Eva", "Fabi"] as const;
 
-/** Fills the lobby with the five names and deals, reaching the reveal step. */
+/** Fills the lobby with the six names and deals, reaching the reveal step. */
 async function fillLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
-  // The lobby starts with 4 seats; add one to reach five.
+  // The lobby starts with 4 seats; add two to reach six.
+  await user.click(screen.getByRole("button", { name: /añadir gato/i }));
   await user.click(screen.getByRole("button", { name: /añadir gato/i }));
 
   for (let i = 0; i < NAMES.length; i += 1) {
@@ -27,12 +28,13 @@ async function fillLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
-/** Clicks through the whole secret reveal to reach the play board. */
+/** Clicks through the whole secret reveal to reach the first night. */
 async function walkReveal(user: ReturnType<typeof userEvent.setup>) {
   for (let i = 0; i < NAMES.length; i += 1) {
     // Flip the current player's card, then pass the phone on.
     await user.click(screen.getByRole("button", { name: /voltear la carta/i }));
-    const passLabel = i === NAMES.length - 1 ? /ocultar y empezar/i : /ocultar y pasar/i;
+    const passLabel =
+      i === NAMES.length - 1 ? /ocultar y empezar/i : /ocultar y pasar/i;
     await user.click(screen.getByRole("button", { name: passLabel }));
   }
 }
@@ -50,66 +52,48 @@ describe("GameScreen", () => {
     expect(screen.getByText(/pásale el teléfono a/i)).toBeInTheDocument();
   });
 
-  it("walks the reveal through to the play board", async () => {
+  it("walks the reveal through to the first night", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
     await fillLobbyAndDeal(user);
     await walkReveal(user);
 
+    // The night opens on the Guardian's gate.
     expect(
-      screen.getByRole("heading", { name: /el callejón murmura/i }),
-    ).toBeInTheDocument();
-    // Every seat appears as an accusable tile.
-    expect(
-      screen.getByRole("button", { name: /señalar a ana/i }),
+      screen.getByRole("heading", { name: /el guardián del umbral/i }),
     ).toBeInTheDocument();
   });
 
-  it("sends a player to trial after seven accusations", async () => {
+  it("runs a full night: guardian passes, wolves take a villager, dawn reports the fall", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
     await fillLobbyAndDeal(user);
     await walkReveal(user);
 
-    // Caro is a villager (index 2) — accuse her the full threshold.
-    for (let i = 0; i < ACCUSATIONS_FOR_TRIAL; i += 1) {
-      await user.click(screen.getByRole("button", { name: /señalar a caro/i }));
-    }
+    // Guardian gate -> pick: ward nobody.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    expect(
-      screen.getByRole("heading", { name: /el juicio de caro/i }),
-    ).toBeInTheDocument();
-  });
-
-  it("walks the night: witches take a victim who falls by dawn", async () => {
-    const user = userEvent.setup();
-    render(<GameScreen shuffle={identityShuffle} />);
-
-    await fillLobbyAndDeal(user);
-    await walkReveal(user);
-
-    // Enter the night from the day board.
-    await user.click(screen.getByRole("button", { name: /que caiga la noche/i }));
-
-    // Gate: hand the phone to the witches.
+    // Wolves gate -> pick Dario (a villager) and seal.
     await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
-
-    // Pick: Dario is a villager (index 3). Select and seal.
     await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
     await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
 
-    // Ward: the Guardian passes without touching.
-    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
-    await user.click(screen.getByRole("button", { name: /sella la noche/i }));
+    // Seer gate -> look at Eva, then resolve the night.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
     // Dawn: Dario did not survive the night.
-    expect(screen.getByText(/dario no volvió al callejón/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/dario no volvió al callejón/i),
+    ).toBeInTheDocument();
 
-    // Back to the next day's board; Dario now renders as fallen.
+    // Into the next day's board.
     await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
-
     expect(
       screen.getByRole("heading", { name: /el callejón murmura/i }),
     ).toBeInTheDocument();
@@ -118,29 +102,31 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("eliminates the accused when their witch card is revealed", async () => {
+  it("lynching the lone werewolf on the day ends the game with the town winning", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
     await fillLobbyAndDeal(user);
     await walkReveal(user);
 
-    // Ana is a witch (index 0); her witch card sits at tryal index 0.
-    for (let i = 0; i < ACCUSATIONS_FOR_TRIAL; i += 1) {
-      await user.click(screen.getByRole("button", { name: /señalar a ana/i }));
-    }
+    // Night: guardian passes, wolves take Dario, seer looks at Eva, resolve.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    // Day: select Ana (the werewolf) and banish her. With one wolf, that ends it.
+    await user.click(screen.getByRole("button", { name: /señalar a ana/i }));
+    await user.click(screen.getByRole("button", { name: /desterrar a ana/i }));
 
     expect(
-      screen.getByRole("heading", { name: /el juicio de ana/i }),
+      screen.getByText(/el vecindario duerme tranquilo/i),
     ).toBeInTheDocument();
-
-    // Reveal the first card — it is the witch card, so Ana falls.
-    await user.click(screen.getByRole("button", { name: /revelar carta 1/i }));
-
-    expect(screen.getByText(/ana cae\. la marca estaba ahí/i)).toBeInTheDocument();
-    // The play board is gone: the accusation buttons no longer render.
-    expect(
-      screen.queryByRole("button", { name: /señalar a caro/i }),
-    ).not.toBeInTheDocument();
   });
 });

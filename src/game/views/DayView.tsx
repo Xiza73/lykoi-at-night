@@ -1,24 +1,34 @@
 import type { Game } from "../../domain/game/game";
-import { ACCUSATIONS_FOR_TRIAL } from "../../domain/game/game";
 import type { Player } from "../../domain/game/player";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
-import { phaseTone } from "../components/phaseStyle";
 
-interface PlayViewProps {
+interface DayViewProps {
   game: Game;
-  onAccuse: (playerId: string) => void;
-  onAdvancePhase: () => void;
+  /** The player picked as the day's suspect, if any. */
+  suspectId: string | null;
+  onSelectSuspect: (playerId: string) => void;
+  /** Banish the current suspect (calls lynch). */
+  onLynch: () => void;
+  /** Skip the vote and fall straight into night (calls advancePhase). */
+  onSkip: () => void;
 }
 
 /**
- * The daytime board: every player as a tile with alive/dead state, accusation
- * count (n/7) and an on-trial highlight. Tapping a living player accuses them.
- * A pacing button toggles day/night — night has no action yet.
+ * The daytime board: the town discusses and votes. Every player is a tile with
+ * alive/dead state; tapping a living player marks them as the suspect. Then the
+ * town either banishes them or lets the day pass without a lynch.
  */
-export function PlayView({ game, onAccuse, onAdvancePhase }: PlayViewProps) {
-  const isNight = game.phase === "night";
-  const tone = phaseTone(game.phase);
+export function DayView({
+  game,
+  suspectId,
+  onSelectSuspect,
+  onLynch,
+  onSkip,
+}: DayViewProps) {
+  const suspect = suspectId
+    ? game.players.find((player) => player.id === suspectId)
+    : undefined;
 
   return (
     <div
@@ -35,7 +45,7 @@ export function PlayView({ game, onAccuse, onAdvancePhase }: PlayViewProps) {
             color: "var(--lyk-ink-strong)",
           }}
         >
-          {isNight ? "Cae la noche" : "El callejón murmura"}
+          El callejón murmura
         </h3>
         <p
           style={{
@@ -46,9 +56,8 @@ export function PlayView({ game, onAccuse, onAdvancePhase }: PlayViewProps) {
             textWrap: "pretty",
           }}
         >
-          {isNight
-            ? "Todos cierran los ojos. La noche aún no muerde: no hay acción nocturna todavía."
-            : `Toca a un gato vivo para señalarlo. Con ${ACCUSATIONS_FOR_TRIAL} marcas empieza su juicio.`}
+          Discutan en voz alta y voten. Toca a un gato para señalarlo como
+          sospechoso.
         </p>
       </div>
 
@@ -65,20 +74,18 @@ export function PlayView({ game, onAccuse, onAdvancePhase }: PlayViewProps) {
           <PlayerTile
             key={player.id}
             player={player}
-            accusations={game.accusations[player.id] ?? 0}
-            disabled={isNight || !player.alive || game.onTrial !== null}
-            onAccuse={() => onAccuse(player.id)}
+            selected={player.id === suspectId}
+            onSelect={() => onSelectSuspect(player.id)}
           />
         ))}
       </div>
 
-      <div style={{ marginTop: "auto" }}>
-        <PrimaryButton
-          variant={isNight ? "gold" : "ghost"}
-          onClick={onAdvancePhase}
-          style={isNight ? undefined : { borderColor: tone, color: tone }}
-        >
-          {isNight ? "Amanece" : "Que caiga la noche"}
+      <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <PrimaryButton onClick={onLynch} disabled={!suspect}>
+          {suspect ? `Desterrar a ${suspect.name}` : "Elige un sospechoso"}
+        </PrimaryButton>
+        <PrimaryButton variant="ghost" onClick={onSkip}>
+          Que nadie caiga hoy
         </PrimaryButton>
       </div>
     </div>
@@ -87,36 +94,43 @@ export function PlayView({ game, onAccuse, onAdvancePhase }: PlayViewProps) {
 
 function PlayerTile({
   player,
-  accusations,
-  disabled,
-  onAccuse,
+  selected,
+  onSelect,
 }: {
   player: Player;
-  accusations: number;
-  disabled: boolean;
-  onAccuse: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const dead = !player.alive;
-  const tone = dead ? "var(--lyk-faint)" : "var(--lyk-gold)";
-  const status = dead
-    ? "Caído"
-    : `${accusations}/${ACCUSATIONS_FOR_TRIAL}`;
+  const tone = dead
+    ? "var(--lyk-faint)"
+    : selected
+      ? "var(--lyk-gold)"
+      : "var(--lyk-gold)";
+  const status = dead ? "Caído" : selected ? "Señalado" : "En pie";
 
   return (
     <button
       type="button"
       aria-label={`Señalar a ${player.name}${dead ? " (caído)" : ""}`}
-      disabled={disabled}
-      onClick={onAccuse}
+      aria-pressed={selected}
+      disabled={dead}
+      onClick={onSelect}
       style={{
         display: "flex",
         alignItems: "center",
         gap: "9px",
         padding: "10px",
-        border: `1px solid ${dead ? "#1d1f24" : "#2a2d33"}`,
-        background: dead ? "rgba(0,0,0,.2)" : "rgba(255,255,255,.015)",
+        border: `1px solid ${
+          dead ? "#1d1f24" : selected ? "var(--lyk-gold)" : "#2a2d33"
+        }`,
+        background: dead
+          ? "rgba(0,0,0,.2)"
+          : selected
+            ? "rgba(198,161,90,.08)"
+            : "rgba(255,255,255,.015)",
         opacity: dead ? 0.45 : 1,
-        cursor: disabled ? "default" : "pointer",
+        cursor: dead ? "default" : "pointer",
         textAlign: "left",
         transition: "border-color .2s, background .2s",
       }}

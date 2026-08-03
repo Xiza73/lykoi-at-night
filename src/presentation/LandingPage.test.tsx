@@ -8,7 +8,11 @@ describe("LandingPage", () => {
     expect(
       screen.getByRole("heading", { name: /Lykoi/i, level: 1 }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Guardián del Umbral")).toBeInTheDocument();
+    // The identity gallery renders each role name as a heading; scope to it so
+    // the query stays unique even though the lobby also names the Guardián.
+    expect(
+      screen.getByRole("heading", { name: "Guardián del Umbral" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Coartada")).toBeInTheDocument();
   });
 });

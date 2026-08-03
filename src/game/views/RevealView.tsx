@@ -1,15 +1,11 @@
 import { useState } from "react";
 import type { Player } from "../../domain/game/player";
-import type { TryalDeck } from "../../domain/game/tryal";
-import { isWitch } from "../../domain/game/roles";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { tryalLabel, tryalTone } from "../tryalLabels";
+import { roleInfo } from "../roleLabels";
 
 interface RevealViewProps {
   /** The player currently holding the phone. */
   player: Player;
-  /** That player's tryal deck — shown face-up to themselves, as in Salem. */
-  tryal: TryalDeck;
   /** True when this is the last player of the reveal order. */
   isLast: boolean;
   /** Called once this player has hidden their card and passes the phone on. */
@@ -18,14 +14,12 @@ interface RevealViewProps {
 
 /**
  * Secret role reveal for one player. Shows a face-down card to tap/flip; once
- * flipped it reveals the player's faction and their own tryal cards. Resets its
- * flip state whenever the player changes (keyed by the parent).
+ * flipped it reveals the player's role name, faction and power. Resets its flip
+ * state whenever the player changes (keyed by the parent).
  */
-export function RevealView({ player, tryal, isLast, onPass }: RevealViewProps) {
+export function RevealView({ player, isLast, onPass }: RevealViewProps) {
   const [flipped, setFlipped] = useState(false);
-  const witch = isWitch(player.role);
-  const tone = witch ? "var(--lyk-blood-bright)" : "var(--lyk-gold)";
-  const faction = witch ? "Lykoi · Maldito" : "Vecindario";
+  const info = roleInfo(player.role);
 
   return (
     <div
@@ -114,53 +108,38 @@ export function RevealView({ player, tryal, isLast, onPass }: RevealViewProps) {
             </svg>
           </CardFace>
 
-          <CardFace tone={tone}>
+          <CardFace tone={info.tone}>
             <div
               style={{
                 fontFamily: "var(--lyk-serif)",
-                fontSize: "26px",
+                fontSize: "24px",
                 lineHeight: 1.1,
                 color: "var(--lyk-ink-strong)",
               }}
             >
-              {player.name}
+              {info.name}
             </div>
             <div
               style={{
                 fontSize: "11px",
                 letterSpacing: ".24em",
                 textTransform: "uppercase",
-                color: tone,
+                color: info.tone,
               }}
             >
-              {faction}
+              {info.faction}
             </div>
-            <div
+            <p
               style={{
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                gap: "6px",
-                maxWidth: "100%",
+                margin: 0,
+                fontSize: "12px",
+                lineHeight: 1.5,
+                color: "var(--lyk-muted-2)",
+                textWrap: "pretty",
               }}
             >
-              {tryal.cards.map((card, index) => (
-                <span
-                  key={index}
-                  style={{
-                    padding: "4px 6px",
-                    border: `1px solid ${tryalTone(card)}`,
-                    fontSize: "9px",
-                    letterSpacing: ".08em",
-                    textTransform: "uppercase",
-                    color: tryalTone(card),
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {tryalLabel(card)}
-                </span>
-              ))}
-            </div>
+              {info.desc}
+            </p>
           </CardFace>
         </div>
       </button>

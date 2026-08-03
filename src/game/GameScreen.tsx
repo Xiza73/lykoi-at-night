@@ -1,24 +1,23 @@
 import { useMemo, useState } from "react";
 import {
-  accuse,
   advancePhase,
   createGame,
+  lynch,
   resolveNight,
-  revealTryal,
   type Game,
 } from "../domain/game/game";
-import type { Seat } from "../domain/game/player";
+import type { RoleConfig, Seat } from "../domain/game/player";
 import { createShuffle, type Shuffle } from "../domain/game/shuffle";
 import { PhoneHeader } from "./components/PhoneHeader";
 import { LobbyView } from "./views/LobbyView";
+import { maxWolves } from "./roleLabels";
 import { RevealView } from "./views/RevealView";
-import { PlayView } from "./views/PlayView";
 import { NightView, type NightStep } from "./views/NightView";
-import { TrialView } from "./views/TrialView";
+import { DayView } from "./views/DayView";
 import { EndView } from "./views/EndView";
 
 /** The finite set of screens the pass-and-play flow moves through. */
-type Step = "lobby" | "reveal" | "play";
+type Step = "lobby" | "reveal" | "night" | "day" | "end";
 
 interface GameScreenProps {
   /**
@@ -30,6 +29,11 @@ interface GameScreenProps {
 }
 
 const DEFAULT_NAMES = ["Ceniza", "Morriña", "Almendra", "Tuerto"] as const;
+const DEFAULT_ROLE_CONFIG: RoleConfig = {
+  werewolves: 1,
+  seer: true,
+  guardian: true,
+};
 
 /**
  * The production shuffle, built once at module load. `createShuffle` is pure —
@@ -45,19 +49,23 @@ const defaultShuffle = createShuffle(() => Math.random());
  */
 export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const [names, setNames] = useState<string[]>([...DEFAULT_NAMES]);
-  const [witchCount, setWitchCount] = useState(3);
+  const [roleConfig, setRoleConfig] = useState<RoleConfig>(DEFAULT_ROLE_CONFIG);
   const [step, setStep] = useState<Step>("lobby");
   const [revealIndex, setRevealIndex] = useState(0);
   const [game, setGame] = useState<Game | null>(null);
-  // The player whose trial is on screen. Set when a trial opens and kept until
-  // the host dismisses it, because the domain clears `onTrial` on the reveal —
-  // we still want to show the resolved outcome afterwards.
-  const [trialId, setTrialId] = useState<string | null>(null);
-  // Night sub-flow state, owned by the container. The victim and ward are
-  // collected by the UI and handed to resolveNight — the only death path.
-  const [nightStep, setNightStep] = useState<NightStep>("gate");
-  const [victimId, setVictimId] = useState<string | null>(null);
-  const [wardedId, setWardedId] = useState<string | null>(null);
+  // Night sub-flow state, owned by the container. The ward, victim and seer
+  // reading are collected by the UI and handed to resolveNight — the only
+  // death path at night.
+  const [nightStep, setNightStep] = useState<NightStep>("guardian-gate");
+  const [protectedId, setProtectedId] = useState<string | null>(null);
+  const [wolfTargetId, setWolfTargetId] = useState<string | null>(null);
+  const [seerTargetId, setSeerTargetId] = useState<string | null>(null);
+  // Snapshot taken the moment resolveNight runs: the name of whoever the night
+  // claimed, or null if the umbral held. Drives the dawn message even after the
+  // phase has advanced to day.
+  const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
+  // The day's suspect, marked by the town before the vote resolves.
+  const [suspectId, setSuspectId] = useState<string | null>(null);
 
   const roundLabel = useMemo(() => {
     if (step === "lobby") {
@@ -69,6 +77,14 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     return `Ronda ${game?.round ?? 1}`;
   }, [step, game]);
 
+  const armNight = () => {
+    setNightStep("guardian-gate");
+    setProtectedId(null);
+    setWolfTargetId(null);
+    setSeerTargetId(null);
+    setDawnVictimName(null);
+  };
+
   const handleAddSeat = () => setNames((prev) => [...prev, ""]);
 
   const handleRemoveSeat = (index: number) =>
@@ -77,13 +93,22 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const handleRenameSeat = (index: number, name: string) =>
     setNames((prev) => prev.map((value, i) => (i === index ? name : value)));
 
+  const handleRoleConfigChange = (next: RoleConfig) => {
+    // Keep the werewolf count within the valid band as the roster changes.
+    const upper = maxWolves(names.length);
+    setRoleConfig({
+      ...next,
+      werewolves: Math.min(Math.max(1, next.werewolves), upper),
+    });
+  };
+
   const handleDeal = () => {
     const seats: Seat[] = names.map((name, index) => ({
       id: `p${index + 1}`,
       name: name.trim() || `Gato ${index + 1}`,
     }));
     // createShuffle is the single randomness boundary; the domain deals purely.
-    const dealt = createGame(seats, { witchCount }, shuffle);
+    const dealt = createGame(seats, roleConfig, shuffle);
     setGame(dealt);
     setRevealIndex(0);
     setStep("reveal");
@@ -94,82 +119,84 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       return;
     }
     if (revealIndex + 1 >= game.players.length) {
-      setStep("play");
+      armNight();
+      setStep("night");
       return;
     }
     setRevealIndex((prev) => prev + 1);
   };
 
-  const handleAccuse = (playerId: string) => {
-    setGame((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = accuse(prev, playerId);
-      // A fresh trial just opened: remember who is on trial so the trial view
-      // stays up after the reveal clears the domain's onTrial.
-      if (next.onTrial !== null && prev.onTrial === null) {
-        setTrialId(next.onTrial);
-      }
-      return next;
-    });
-  };
-
-  const handleReveal = (index: number) => {
-    setGame((prev) => (prev ? revealTryal(prev, index) : prev));
-  };
-
-  const handleTrialContinue = () => setTrialId(null);
-
-  const handleAdvancePhase = () => {
-    setGame((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = advancePhase(prev);
-      // Entering the night: arm the night flow at its first sub-step.
-      if (next.phase === "night") {
-        setNightStep("gate");
-        setVictimId(null);
-        setWardedId(null);
-      }
-      return next;
-    });
-  };
-
-  const handleConfirmVictim = () => {
-    if (victimId !== null) {
-      setNightStep("ward");
-    }
-  };
-
-  const handleConfirmWard = () => {
-    if (victimId === null) {
+  const handleResolveNight = () => {
+    if (!game) {
       return;
     }
-    // resolveNight is the ONLY death path: it kills (or spares) the victim and
-    // breaks to the next day — or ends the game. Randomness never enters here.
-    setGame((prev) => (prev ? resolveNight(prev, victimId, wardedId) : prev));
+    // resolveNight is the ONLY night death path: it kills (or spares) the victim
+    // and breaks to the next day — or ends the game. Randomness never enters.
+    const resolved = resolveNight(game, wolfTargetId, protectedId);
+    const victim = wolfTargetId
+      ? resolved.players.find((player) => player.id === wolfTargetId)
+      : undefined;
+    // The victim fell if they were the wolves' target and are now dead.
+    setDawnVictimName(victim && !victim.alive ? victim.name : null);
+    setGame(resolved);
     setNightStep("dawn");
   };
 
   const handleDawnContinue = () => {
-    // resolveNight already advanced to the next day (or ended the game); just
-    // rearm the night flow for next time.
-    setNightStep("gate");
-    setVictimId(null);
-    setWardedId(null);
+    if (!game) {
+      return;
+    }
+    // resolveNight already advanced to day (or ended the game): route the screen.
+    if (game.status === "ended") {
+      setStep("end");
+      return;
+    }
+    setSuspectId(null);
+    setStep("day");
+  };
+
+  const handleLynch = () => {
+    if (!game || suspectId === null) {
+      return;
+    }
+    const next = lynch(game, suspectId);
+    setGame(next);
+    setSuspectId(null);
+    if (next.status === "ended") {
+      setStep("end");
+      return;
+    }
+    armNight();
+    setStep("night");
+  };
+
+  const handleSkipDay = () => {
+    if (!game) {
+      return;
+    }
+    // "No lynch": skip straight to the next night.
+    const next = advancePhase(game);
+    setGame(next);
+    setSuspectId(null);
+    if (next.status === "ended") {
+      setStep("end");
+      return;
+    }
+    armNight();
+    setStep("night");
   };
 
   const handleReset = () => {
     setGame(null);
     setStep("lobby");
     setRevealIndex(0);
-    setTrialId(null);
-    setNightStep("gate");
-    setVictimId(null);
-    setWardedId(null);
+    setSuspectId(null);
+    armNight();
   };
+
+  // The header phase chip only shows during active play (night/day).
+  const phase =
+    step === "night" ? "night" : step === "day" ? "day" : undefined;
 
   return (
     <div
@@ -196,10 +223,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
         }}
       />
 
-      <PhoneHeader
-        roundLabel={roundLabel}
-        phase={game && step === "play" ? game.phase : undefined}
-      />
+      <PhoneHeader roundLabel={roundLabel} phase={phase} />
 
       <div
         style={{
@@ -221,11 +245,11 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       return (
         <LobbyView
           names={names}
-          witchCount={witchCount}
+          roleConfig={roleConfig}
           onAddSeat={handleAddSeat}
           onRemoveSeat={handleRemoveSeat}
           onRenameSeat={handleRenameSeat}
-          onWitchCountChange={setWitchCount}
+          onRoleConfigChange={handleRoleConfigChange}
           onDeal={handleDeal}
         />
       );
@@ -237,59 +261,45 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
         <RevealView
           key={player.id}
           player={player}
-          tryal={game.tryals[player.id]}
           isLast={revealIndex + 1 >= game.players.length}
           onPass={handlePass}
         />
       );
     }
 
-    // step === "play". A trial is on screen while trialId is set, even after
-    // the reveal resolves it — so the outcome copy stays visible.
-    if (trialId !== null) {
-      const accused = game.players.find((p) => p.id === trialId);
-      if (accused) {
-        return (
-          <TrialView
-            accused={accused}
-            tryal={game.tryals[accused.id]}
-            onReveal={handleReveal}
-            onContinue={handleTrialContinue}
-            gameEnded={game.status === "ended"}
-          />
-        );
-      }
-    }
-
-    if (game.status === "ended" && game.winner !== null) {
+    if (step === "end" && game.winner !== null) {
       return <EndView winner={game.winner} onReset={handleReset} />;
     }
 
-    // The night flow owns the screen while it is night. At "dawn", resolveNight
-    // has already flipped the phase back to day, so keep showing the outcome
-    // until the host dismisses it.
-    if (game.phase === "night" || nightStep === "dawn") {
+    if (step === "night") {
       return (
         <NightView
           game={game}
           step={nightStep}
-          victimId={victimId}
-          wardedId={wardedId}
-          onOpenGate={() => setNightStep("pick")}
-          onSelectVictim={setVictimId}
-          onConfirmVictim={handleConfirmVictim}
-          onSelectWard={setWardedId}
-          onConfirmWard={handleConfirmWard}
+          protectedId={protectedId}
+          wolfTargetId={wolfTargetId}
+          seerTargetId={seerTargetId}
+          victimName={dawnVictimName}
+          onOpenGate={setNightStep}
+          onSelectProtected={setProtectedId}
+          onConfirmProtected={() => setNightStep("wolf-gate")}
+          onSelectWolfTarget={setWolfTargetId}
+          onConfirmWolfTarget={() => setNightStep("seer-gate")}
+          onSelectSeerTarget={setSeerTargetId}
+          onResolve={handleResolveNight}
           onDawnContinue={handleDawnContinue}
         />
       );
     }
 
+    // step === "day".
     return (
-      <PlayView
+      <DayView
         game={game}
-        onAccuse={handleAccuse}
-        onAdvancePhase={handleAdvancePhase}
+        suspectId={suspectId}
+        onSelectSuspect={setSuspectId}
+        onLynch={handleLynch}
+        onSkip={handleSkipDay}
       />
     );
   }

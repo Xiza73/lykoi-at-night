@@ -7,17 +7,19 @@ interface EndViewProps {
 }
 
 /**
- * The end screen: winner banner with a face and the Salem-literal victory copy,
- * plus an "Otra noche" reset. Town wins when no Lykoi remain; Lykoi win when no
- * honest cat is left.
+ * The end screen: winner banner with a face and the victory copy, plus an
+ * "Otra noche" reset. Town wins when no Lykoi remain; Lykoi win once they reach
+ * parity with the town.
  */
 export function EndView({ winner, onReset }: EndViewProps) {
   const townWon = winner === "town";
   const tone = townWon ? "var(--lyk-gold)" : "var(--lyk-blood-bright)";
-  const title = townWon ? "El vecindario respira" : "Los Lykoi mandan";
+  const title = townWon
+    ? "El vecindario duerme tranquilo"
+    : "Los Lykoi se quedan el callejón";
   const text = townWon
-    ? "El vecindario duerme tranquilo. No queda ni un Lykoi despierto."
-    : "Los Lykoi se quedan el callejón. No sobrevivió ningún gato honesto.";
+    ? "El último Lykoi cayó. Nadie habla de lo que costó."
+    : "Ya son tantos como vosotros. Votar dejó de significar algo.";
 
   return (
     <div

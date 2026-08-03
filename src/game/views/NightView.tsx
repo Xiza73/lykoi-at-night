@@ -1,73 +1,139 @@
 import type { Game } from "../../domain/game/game";
+import { investigate } from "../../domain/game/game";
 import type { Player } from "../../domain/game/player";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
 
-/** The night's ordered sub-steps, owned by the container. */
-export type NightStep = "gate" | "pick" | "ward" | "dawn";
+/**
+ * The night's ordered sub-steps, owned by the container. Every role turn is
+ * ALWAYS shown (gate then action) so nobody can infer who is still alive from
+ * which turns appear.
+ */
+export type NightStep =
+  | "guardian-gate"
+  | "guardian-pick"
+  | "wolf-gate"
+  | "wolf-pick"
+  | "seer-gate"
+  | "seer-pick"
+  | "dawn";
 
 interface NightViewProps {
   game: Game;
   step: NightStep;
-  /** The witches' chosen victim, once picked. */
-  victimId: string | null;
-  /** The player warded by the Guardian, or null for "nobody". */
-  wardedId: string | null;
-  onOpenGate: () => void;
-  onSelectVictim: (playerId: string) => void;
-  onConfirmVictim: () => void;
-  onSelectWard: (playerId: string | null) => void;
-  onConfirmWard: () => void;
+  /** The Guardian's warded player, or null for "nobody". */
+  protectedId: string | null;
+  /** The Lykoi's chosen victim, once picked. */
+  wolfTargetId: string | null;
+  /** The player the Seer looked at this night, if any. */
+  seerTargetId: string | null;
+  /** Whether the wolves' victim died this night (from the dawn snapshot). */
+  victimName: string | null;
+  onOpenGate: (next: NightStep) => void;
+  onSelectProtected: (playerId: string | null) => void;
+  onConfirmProtected: () => void;
+  onSelectWolfTarget: (playerId: string) => void;
+  onConfirmWolfTarget: () => void;
+  onSelectSeerTarget: (playerId: string) => void;
+  onResolve: () => void;
   onDawnContinue: () => void;
 }
 
 /**
- * The night flow, rendered while `game.phase === "night"`. It never computes
- * deaths or protection itself — the container collects the victim and ward and
- * routes them through `resolveNight`. This view only paints the pass-and-play
- * sub-steps and reports the resolved outcome at dawn.
+ * The night flow, rendered while `game.phase === "night"` (and through dawn).
+ * It never computes deaths or protection itself — the container collects the
+ * ward, victim and seer reading and routes them through `resolveNight`. This
+ * view only paints the pass-and-play sub-steps and reports the outcome at dawn.
  */
 export function NightView({
   game,
   step,
-  victimId,
-  wardedId,
+  protectedId,
+  wolfTargetId,
+  seerTargetId,
+  victimName,
   onOpenGate,
-  onSelectVictim,
-  onConfirmVictim,
-  onSelectWard,
-  onConfirmWard,
+  onSelectProtected,
+  onConfirmProtected,
+  onSelectWolfTarget,
+  onConfirmWolfTarget,
+  onSelectSeerTarget,
+  onResolve,
   onDawnContinue,
 }: NightViewProps) {
   const living = game.players.filter((player) => player.alive);
 
-  if (step === "gate") {
+  if (step === "guardian-gate") {
     return (
       <Frame
-        title="Cae la noche"
-        body="Pásale el teléfono a los Lykoi. Que los demás aparten la mirada."
+        title="El Guardián del Umbral"
+        body="Pásale el teléfono al Guardián del Umbral. Que los demás aparten la mirada."
       >
         <div style={{ marginTop: "auto" }}>
-          <PrimaryButton onClick={onOpenGate}>Somos los Lykoi</PrimaryButton>
+          <PrimaryButton onClick={() => onOpenGate("guardian-pick")}>
+            Ya lo tengo
+          </PrimaryButton>
         </div>
       </Frame>
     );
   }
 
-  if (step === "pick") {
+  if (step === "guardian-pick") {
     return (
       <Frame
-        title="La caza"
-        body="Cae la noche. Elijan a quién se lleva la oscuridad."
+        title="Vela una puerta"
+        body="Vela a un gato esta noche. Si no sos el Guardián, pasá sin tocar."
       >
         <PlayerGrid
           players={living}
-          selectedId={victimId}
-          actionLabel={(name) => `Elegir a ${name}`}
-          onSelect={onSelectVictim}
+          selectedId={protectedId}
+          actionLabel={(name) => `Velar a ${name}`}
+          onSelect={onSelectProtected}
+        />
+        <PassOption
+          label="Nadie / pasar"
+          selected={protectedId === null}
+          onClick={() => onSelectProtected(null)}
         />
         <div style={{ marginTop: "auto" }}>
-          <PrimaryButton onClick={onConfirmVictim} disabled={victimId === null}>
+          <PrimaryButton onClick={onConfirmProtected}>Listo</PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (step === "wolf-gate") {
+    return (
+      <Frame
+        title="Los Lykoi"
+        body="Pásale el teléfono a los Lykoi. Que los demás aparten la mirada."
+      >
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={() => onOpenGate("wolf-pick")}>
+            Somos los Lykoi
+          </PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (step === "wolf-pick") {
+    return (
+      <Frame
+        title="La caza"
+        body="Elijan a quién se lleva la oscuridad."
+      >
+        <PlayerGrid
+          players={living}
+          selectedId={wolfTargetId}
+          actionLabel={(name) => `Elegir a ${name}`}
+          onSelect={onSelectWolfTarget}
+        />
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton
+            onClick={onConfirmWolfTarget}
+            disabled={wolfTargetId === null}
+          >
             Sellar la presa
           </PrimaryButton>
         </div>
@@ -75,57 +141,77 @@ export function NightView({
     );
   }
 
-  if (step === "ward") {
+  if (step === "seer-gate") {
     return (
       <Frame
-        title="El Guardián del Umbral"
-        body="Guardián del Umbral, si sigues en pie, vela a un gato. Si no eres tú, pasa sin tocar."
+        title="La Vidente del Alféizar"
+        body="Pásale el teléfono a la Vidente del Alféizar. Que los demás aparten la mirada."
       >
-        <PlayerGrid
-          players={living}
-          selectedId={wardedId}
-          actionLabel={(name) => `Velar a ${name}`}
-          onSelect={onSelectWard}
-        />
-        <button
-          type="button"
-          aria-label="Nadie / pasar"
-          onClick={() => onSelectWard(null)}
-          style={{
-            padding: "12px",
-            border: `1px solid ${wardedId === null ? "var(--lyk-gold)" : "#2a2d33"}`,
-            background: "rgba(255,255,255,.015)",
-            color: wardedId === null ? "var(--lyk-gold)" : "var(--lyk-ink)",
-            fontSize: "12px",
-            letterSpacing: ".14em",
-            textTransform: "uppercase",
-            cursor: "pointer",
-            transition: "border-color .2s, color .2s",
-          }}
-        >
-          Nadie / pasar
-        </button>
         <div style={{ marginTop: "auto" }}>
-          <PrimaryButton onClick={onConfirmWard}>Sella la noche</PrimaryButton>
+          <PrimaryButton onClick={() => onOpenGate("seer-pick")}>
+            Ya lo tengo
+          </PrimaryButton>
         </div>
       </Frame>
     );
   }
 
-  // step === "dawn". The container has already run resolveNight, so we read the
-  // resolved game to tell whether the victim fell.
-  const victim = victimId
-    ? game.players.find((player) => player.id === victimId)
-    : undefined;
-  const fell = victim ? !victim.alive : false;
+  if (step === "seer-pick") {
+    const target = seerTargetId
+      ? game.players.find((player) => player.id === seerTargetId)
+      : undefined;
+    const reading = target ? investigate(game, target.id) : null;
+    const readingText =
+      target && reading
+        ? reading === "wolves"
+          ? `${target.name} esconde algo bajo el pelaje.`
+          : `${target.name} ronronea de verdad.`
+        : null;
+    const readingTone =
+      reading === "wolves" ? "var(--lyk-blood-bright)" : "var(--lyk-gold)";
 
+    return (
+      <Frame
+        title="La visión"
+        body="Mira a un gato. Si no sos la Vidente, pasá sin tocar."
+      >
+        <PlayerGrid
+          players={living}
+          selectedId={seerTargetId}
+          actionLabel={(name) => `Mirar a ${name}`}
+          onSelect={onSelectSeerTarget}
+        />
+        {readingText ? (
+          <div
+            style={{
+              padding: "12px 14px",
+              borderLeft: `2px solid ${readingTone}`,
+              background: "rgba(255,255,255,.03)",
+              fontSize: "13px",
+              lineHeight: 1.5,
+              color: "var(--lyk-ink)",
+            }}
+          >
+            {readingText}
+          </div>
+        ) : null}
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={onResolve}>Listo</PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  // step === "dawn". The container has already run resolveNight and captured a
+  // snapshot of whether the victim fell.
+  const fell = victimName !== null;
   return (
     <Frame
       title="Amanece"
       body={
-        fell && victim
-          ? `Amanece. ${victim.name} no volvió al callejón.`
-          : "Amaneció sin bajas. Alguien veló una puerta esta noche."
+        fell
+          ? `Amanece. ${victimName} no volvió al callejón.`
+          : "Amaneció sin bajas. Alguien veló una puerta."
       }
     >
       <div
@@ -138,8 +224,8 @@ export function NightView({
           color: "var(--lyk-ink)",
         }}
       >
-        {fell && victim
-          ? `La oscuridad se llevó a ${victim.name}.`
+        {fell
+          ? `La oscuridad se llevó a ${victimName}.`
           : "El umbral resistió. Nadie cayó esta noche."}
       </div>
       <div style={{ marginTop: "auto" }}>
@@ -199,9 +285,42 @@ function Frame({
   );
 }
 
+/** The "nobody / pass" option shared by the ward and (implicitly) seer turns. */
+function PassOption({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={onClick}
+      style={{
+        padding: "12px",
+        border: `1px solid ${selected ? "var(--lyk-gold)" : "#2a2d33"}`,
+        background: "rgba(255,255,255,.015)",
+        color: selected ? "var(--lyk-gold)" : "var(--lyk-ink)",
+        fontSize: "12px",
+        letterSpacing: ".14em",
+        textTransform: "uppercase",
+        cursor: "pointer",
+        transition: "border-color .2s, color .2s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 /**
- * A grid of living players, reusing the PlayView tile styling. Tapping a tile
- * selects it (highlight); the selected id is controlled by the parent.
+ * A grid of living players. Tapping a tile selects it (highlight); the selected
+ * id is controlled by the parent.
  */
 function PlayerGrid({
   players,
