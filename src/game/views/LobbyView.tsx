@@ -11,6 +11,8 @@ import { maxWolves } from "../roleLabels";
 import {
   COMING_SOON_ROLES,
   defaultName,
+  isPresetAvailable,
+  PRESETS,
   presetConfig,
   type PresetId,
 } from "../presets";
@@ -207,6 +209,36 @@ function CountStep({
   );
 }
 
+/**
+ * Compact Spanish names for the special roles, used to summarise a preset's
+ * hand on its card. The reveal cards in `roleInfo` carry the fuller titles.
+ */
+const SPECIAL_LABELS: { key: keyof RoleConfig; label: string }[] = [
+  { key: "seer", label: "Vidente" },
+  { key: "guardian", label: "Guardián" },
+  { key: "hunter", label: "Cazador" },
+  { key: "insomniac", label: "Insomne" },
+  { key: "infector", label: "Madre Camada" },
+  { key: "gossip", label: "Chismosa" },
+  { key: "trickster", label: "Ronroneo Falso" },
+];
+
+/** A one-line summary of what a preset deals at the current player count. */
+function presetSummary(preset: PresetId, count: number): string {
+  if (preset === "custom") {
+    return "Armá tu propia mano, rol por rol.";
+  }
+  const config = presetConfig(preset, count);
+  const wolves = `${config.werewolves} Lykoi`;
+  const specials = SPECIAL_LABELS.filter(({ key }) => config[key]).map(
+    ({ label }) => label,
+  );
+  if (specials.length === 0) {
+    return `${wolves} · Solo Lykoi y gatos honestos.`;
+  }
+  return [wolves, ...specials].join(" · ");
+}
+
 /** Sub-step 2: choose a preset (Básico / Clásico / Avanzado / Personalizado). */
 function PresetStep({
   count,
@@ -217,7 +249,6 @@ function PresetStep({
   onPick: (preset: PresetId) => void;
   onBack: () => void;
 }) {
-  const wolves = presetConfig("basic", count).werewolves;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -236,26 +267,22 @@ function PresetStep({
           paddingRight: "2px",
         }}
       >
-        <PresetCard
-          title="Básico"
-          detail={`Solo Lykoi (${wolves}) y gatos honestos.`}
-          onSelect={() => onPick("basic")}
-        />
-        <PresetCard
-          title="Clásico"
-          detail={`${wolves} Lykoi, Vidente y Guardián del Umbral.`}
-          onSelect={() => onPick("classic")}
-        />
-        <PresetCard
-          title="Avanzado"
-          detail="Clásico + el Cazador de Sombras y la Madre Camada."
-          onSelect={() => onPick("advanced")}
-        />
-        <PresetCard
-          title="Personalizado"
-          detail="Armá tu propia mano, rol por rol."
-          onSelect={() => onPick("custom")}
-        />
+        {PRESETS.map((meta) => {
+          const available = isPresetAvailable(meta.id, count);
+          return (
+            <PresetCard
+              key={meta.id}
+              title={meta.name}
+              detail={
+                available
+                  ? presetSummary(meta.id, count)
+                  : `Desde ${meta.minPlayers} gatos.`
+              }
+              disabled={!available}
+              onSelect={available ? () => onPick(meta.id) : undefined}
+            />
+          );
+        })}
       </div>
 
       <div style={{ marginTop: "auto" }}>
