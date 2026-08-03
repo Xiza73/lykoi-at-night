@@ -248,9 +248,8 @@ function PresetStep({
         />
         <PresetCard
           title="Avanzado"
-          detail="Clásico + roles con poderes especiales."
-          badge="Próximamente"
-          disabled
+          detail="Clásico + el Cazador de Sombras."
+          onSelect={() => onPick("advanced")}
         />
         <PresetCard
           title="Personalizado"
@@ -358,7 +357,10 @@ function TableStep({
 }) {
   const upper = maxWolves(count);
   const specials =
-    config.werewolves + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0);
+    config.werewolves +
+    (config.seer ? 1 : 0) +
+    (config.guardian ? 1 : 0) +
+    (config.hunter ? 1 : 0);
   const town = count - config.werewolves;
   const configValid =
     config.werewolves >= 1 && config.werewolves < town && specials <= count;
@@ -527,6 +529,11 @@ function RolePicker({
         label="Guardián del Umbral"
         active={config.guardian}
         onToggle={() => onChange({ ...config, guardian: !config.guardian })}
+      />
+      <RoleToggle
+        label="Cazador de Sombras"
+        active={config.hunter ?? false}
+        onToggle={() => onChange({ ...config, hunter: !config.hunter })}
       />
 
       {showComingSoon

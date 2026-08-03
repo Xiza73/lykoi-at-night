@@ -86,6 +86,20 @@ async function fillTwoWolfLobbyAndDeal(
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
+/**
+ * Fills a six-seat Avanzado lobby (Clásico + Cazador de Sombras) and deals. With
+ * the identity shuffle the roles fall in seat order: Ana (p1) wolf, Beto (p2)
+ * seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva/Fabi villagers.
+ */
+async function fillHunterLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^avanzado$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -174,6 +188,43 @@ describe("GameScreen", () => {
 
     expect(
       screen.getByText(/el vecindario duerme tranquilo/i),
+    ).toBeInTheDocument();
+  });
+
+  it("night-killing the Cazador opens the revenge step, then a pick advances to dawn", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night: guardian passes, wolves take Dario (the Cazador), seer looks at Eva.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // The Cazador fell: the revenge step opens BEFORE dawn.
+    expect(
+      screen.getByRole("heading", { name: /el cazador de sombras cae/i }),
+    ).toBeInTheDocument();
+
+    // Pick Eva as the one taken down, then confirm the revenge.
+    await user.click(screen.getByRole("button", { name: /llevarse a eva/i }));
+    await user.click(screen.getByRole("button", { name: /se lleva a eva/i }));
+
+    // Revenge resolved: the domain advanced to the day board.
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+    // Eva was taken down by the Cazador.
+    expect(
+      screen.getByRole("button", { name: /señalar a eva \(caído\)/i }),
     ).toBeInTheDocument();
   });
 

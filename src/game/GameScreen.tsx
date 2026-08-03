@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   advancePhase,
   createGame,
+  hunterRevenge,
   lynch,
   resolveNight,
   type Game,
@@ -14,9 +15,10 @@ import { RevealView } from "./views/RevealView";
 import { NightView, type NightStep } from "./views/NightView";
 import { DayView } from "./views/DayView";
 import { EndView } from "./views/EndView";
+import { HunterView } from "./views/HunterView";
 
 /** The finite set of screens the pass-and-play flow moves through. */
-type Step = "lobby" | "reveal" | "night" | "day" | "end";
+type Step = "lobby" | "reveal" | "night" | "day" | "hunter" | "end";
 
 interface GameScreenProps {
   /**
@@ -56,6 +58,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
   // The day's suspect, marked by the town before the vote resolves.
   const [suspectId, setSuspectId] = useState<string | null>(null);
+  // The player the fallen Cazador de Sombras picks to take down with them.
+  const [hunterTargetId, setHunterTargetId] = useState<string | null>(null);
 
   const roundLabel = useMemo(() => {
     if (step === "lobby") {
@@ -108,6 +112,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     // The victim fell if they were the wolves' target and are now dead.
     setDawnVictimName(victim && !victim.alive ? victim.name : null);
     setGame(resolved);
+    // The Cazador falls at night: pause for the public revenge before dawn.
+    if (resolved.pendingHunter !== null) {
+      setHunterTargetId(null);
+      setStep("hunter");
+      return;
+    }
     setNightStep("dawn");
   };
 
@@ -131,12 +141,42 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     const next = lynch(game, suspectId);
     setGame(next);
     setSuspectId(null);
+    // The Cazador is lynched by day: pause for the public revenge before night.
+    if (next.pendingHunter !== null) {
+      setHunterTargetId(null);
+      setStep("hunter");
+      return;
+    }
     if (next.status === "ended") {
       setStep("end");
       return;
     }
     armNight();
     setStep("night");
+  };
+
+  const handleHunterRevenge = () => {
+    if (!game) {
+      return;
+    }
+    // hunterRevenge is the ONLY revenge death path: it takes the chosen player,
+    // clears the pause and lets the domain resolve + advance the clock.
+    const next = hunterRevenge(game, hunterTargetId);
+    setGame(next);
+    setHunterTargetId(null);
+    if (next.status === "ended") {
+      setStep("end");
+      return;
+    }
+    // The domain already advanced: dawn if the hunter died at night (now day),
+    // nightfall if lynched by day (now night). Route to whichever it reached.
+    if (next.phase === "night") {
+      armNight();
+      setStep("night");
+      return;
+    }
+    setSuspectId(null);
+    setStep("day");
   };
 
   const handleSkipDay = () => {
@@ -160,6 +200,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setStep("lobby");
     setRevealIndex(0);
     setSuspectId(null);
+    setHunterTargetId(null);
     armNight();
   };
 
@@ -237,6 +278,17 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
 
     if (step === "end" && game.winner !== null) {
       return <EndView winner={game.winner} onReset={handleReset} />;
+    }
+
+    if (step === "hunter") {
+      return (
+        <HunterView
+          game={game}
+          targetId={hunterTargetId}
+          onSelectTarget={setHunterTargetId}
+          onConfirm={handleHunterRevenge}
+        />
+      );
     }
 
     if (step === "night") {

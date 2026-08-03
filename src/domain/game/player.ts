@@ -26,6 +26,7 @@ export interface RoleConfig {
   readonly werewolves: number;
   readonly seer: boolean;
   readonly guardian: boolean;
+  readonly hunter?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -61,7 +62,10 @@ export function dealRoles(
     throw new RangeError("A game needs at least one werewolf");
   }
   const specials =
-    config.werewolves + (config.seer ? 1 : 0) + (config.guardian ? 1 : 0);
+    config.werewolves +
+    (config.seer ? 1 : 0) +
+    (config.guardian ? 1 : 0) +
+    (config.hunter ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -79,6 +83,9 @@ export function dealRoles(
   }
   if (config.guardian) {
     roles.push("guardian");
+  }
+  if (config.hunter) {
+    roles.push("hunter");
   }
   while (roles.length < seats.length) {
     roles.push("villager");

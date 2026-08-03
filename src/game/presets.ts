@@ -10,7 +10,7 @@ export function recommendedWolves(count: number): number {
   return Math.min(Math.max(1, Math.floor(count / 4)), maxWolves(count));
 }
 
-/** The presets offered by the wizard. "advanced" is a preview and not dealable. */
+/** The presets offered by the wizard. All four are dealable. */
 export type PresetId = "basic" | "classic" | "advanced" | "custom";
 
 /** The role config a preset resolves to for the current player count. */
@@ -19,21 +19,23 @@ export function presetConfig(preset: PresetId, count: number): RoleConfig {
   switch (preset) {
     case "basic":
       return { werewolves, seer: false, guardian: false };
+    case "advanced":
+      // Avanzado is Clásico plus the Cazador de Sombras.
+      return { werewolves, seer: true, guardian: true, hunter: true };
     case "classic":
     case "custom":
-    case "advanced":
-      // Custom and advanced both start from the Clásico hand as their baseline.
+      // Custom starts from the Clásico hand as its baseline.
       return { werewolves, seer: true, guardian: true };
   }
 }
 
 /**
- * The five special roles previewed under the Personalizado preset. Display-only:
- * they are NOT part of `RoleConfig` and never reach the domain — the deck still
- * only carries werewolf / seer / guardian / villager.
+ * The special roles previewed under the Personalizado preset that are not yet
+ * dealable. Display-only: they are NOT part of `RoleConfig` and never reach the
+ * domain. The Cazador de Sombras graduated out of this list — it is now a real
+ * toggle feeding `config.hunter`.
  */
 export const COMING_SOON_ROLES = [
-  "Cazador de Sombras",
   "Madre Camada",
   "Ronroneo Falso",
   "El Insomne",

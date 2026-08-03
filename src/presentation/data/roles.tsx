@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
  * The nine roles of "Lykoi at Night" — a loose Werewolf adaptation with a
  * gothic-cat voice.
  *
- * Four of them are wired into the playable engine (Lykoi, Vidente del Alféizar,
- * Guardián del Umbral, Gato Doméstico). The other five are part of the design's
- * roster but not implemented yet; the gallery marks those "Próximamente".
+ * Five of them are wired into the playable engine (Lykoi, Vidente del Alféizar,
+ * Guardián del Umbral, Cazador de Sombras, Gato Doméstico). The other four are
+ * part of the design's roster but not implemented yet; the gallery marks those
+ * "Próximamente".
  *
  * Each role carries its hand-drawn SVG art (paths only, wrapped by <RoleCard>).
  */
@@ -125,7 +126,7 @@ export const roles: Role[] = [
     faction: "Vecindario",
     description:
       "Si cae, se lleva a otro gato con él. Rencoroso incluso muerto.",
-    implemented: false,
+    implemented: true,
     art: (
       <>
         <path

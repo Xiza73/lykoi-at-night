@@ -23,6 +23,7 @@ export interface Game {
   readonly round: number;
   readonly status: GameStatus;
   readonly winner: Outcome | null;
+  readonly pendingHunter: PlayerId | null;
 }
 
 /** Creates a new game: deals roles and opens on the first night. */
@@ -38,6 +39,7 @@ export function createGame(
     round: 1,
     status: "in_progress",
     winner: null,
+    pendingHunter: null,
   };
 }
 
@@ -118,12 +120,15 @@ export function resolveNight(
       : (game.players.find((player) => player.id === wolfTargetId) ?? null);
   const saved =
     guardianAlive && protectedId !== null && protectedId === wolfTargetId;
-  const players =
-    victim && victim.alive && !saved
-      ? game.players.map((player) =>
-          player.id === victim.id ? eliminate(player) : player,
-        )
-      : game.players;
+  const dies = victim !== null && victim.alive && !saved;
+  const players = dies
+    ? game.players.map((player) =>
+        player.id === victim.id ? eliminate(player) : player,
+      )
+    : game.players;
+  if (dies && victim.role === "hunter") {
+    return { ...game, players, pendingHunter: victim.id };
+  }
   const resolved = resolve({ ...game, players });
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
 }
@@ -143,6 +148,35 @@ export function lynch(game: Game, targetId: PlayerId): Game {
   const players = game.players.map((player) =>
     player.id === targetId ? eliminate(player) : player,
   );
+  if (target.role === "hunter") {
+    return { ...game, players, pendingHunter: target.id };
+  }
   const resolved = resolve({ ...game, players });
+  return resolved.status === "ended" ? resolved : advancePhase(resolved);
+}
+
+/**
+ * Resolves the Hunter's dying revenge: the chosen player is taken down too.
+ * Only valid while a hunter's death is pending. Then the game resolves and the
+ * clock advances (dawn if the hunter died at night, nightfall if by day).
+ * A null target means no one is taken. (No cascade: shooting another hunter
+ * does not trigger a second revenge.)
+ */
+export function hunterRevenge(game: Game, targetId: PlayerId | null): Game {
+  if (game.pendingHunter === null) {
+    return game;
+  }
+  const target =
+    targetId === null
+      ? null
+      : (game.players.find((player) => player.id === targetId) ?? null);
+  const players =
+    target && target.alive
+      ? game.players.map((player) =>
+          player.id === target.id ? eliminate(player) : player,
+        )
+      : game.players;
+  const cleared: Game = { ...game, players, pendingHunter: null };
+  const resolved = resolve(cleared);
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
 }

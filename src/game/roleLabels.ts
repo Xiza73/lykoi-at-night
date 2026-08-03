@@ -41,6 +41,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-gold)",
         desc: "Cada noche velas una puerta; quien esté detrás, sobrevive.",
       };
+    case "hunter":
+      return {
+        name: "Cazador de Sombras",
+        faction: "Vecindario",
+        tone: "var(--lyk-gold)",
+        desc: "Si cae, se lleva a otro gato con él. Rencoroso incluso muerto.",
+      };
     case "villager":
       return {
         name: "Gato Doméstico",

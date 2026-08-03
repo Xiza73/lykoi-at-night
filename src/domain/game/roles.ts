@@ -1,5 +1,5 @@
 /** A player's secret role. */
-export type Role = "werewolf" | "seer" | "guardian" | "villager";
+export type Role = "werewolf" | "seer" | "guardian" | "hunter" | "villager";
 
 /** The two teams. */
 export type Alignment = "wolves" | "town";
