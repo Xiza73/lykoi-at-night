@@ -97,7 +97,7 @@ export function HunterView({
         }}
       >
         <PrimaryButton onClick={onConfirm} disabled={!target}>
-          {target ? `Se lleva a ${target.name}` : "Elegí a quién llevarte"}
+          {target ? `Se lleva a ${target.name}` : "Elige a quién llevarte"}
         </PrimaryButton>
         <button
           type="button"

@@ -72,7 +72,7 @@ export const roles: Role[] = [
   },
   {
     id: "guardian",
-    name: "Curandero del Callejón",
+    name: "Curandero de la Camada",
     faction: "Vecindario",
     description:
       "Cura a un gato cada noche y lo hace sobrevivir a un ataque. Nunca a sí mismo, ni al mismo dos noches seguidas.",
@@ -105,7 +105,7 @@ export const roles: Role[] = [
   },
   {
     id: "cupido",
-    name: "Cupido del Callejón",
+    name: "Cupido",
     faction: "Vecindario",
     description:
       "La primera noche enlaza a dos gatos enamorados. Si uno cae, el otro lo sigue a la misma suerte.",
@@ -120,7 +120,7 @@ export const roles: Role[] = [
   },
   {
     id: "bruja",
-    name: "La Bruja del Callejón",
+    name: "La Gata del Bosque",
     faction: "Vecindario",
     description:
       "Guarda dos frascos para toda la partida: una poción que revive a quien la manada marque, y un veneno que mata aunque lo estén curando.",
@@ -137,7 +137,7 @@ export const roles: Role[] = [
   },
   {
     id: "caperuza",
-    name: "Caperuza del Callejón",
+    name: "Caperuza",
     faction: "Vecindario",
     description:
       "Mientras el Cazador respire, los Lykoi no pueden llevársela en la noche. Duerme a salvo, sin nada que hacer.",
@@ -153,7 +153,7 @@ export const roles: Role[] = [
   },
   {
     id: "alcalde",
-    name: "Alcalde del Callejón",
+    name: "Alcalde del Tejado",
     faction: "Vecindario",
     description:
       "Cuando el destierro del día queda empatado, su palabra pesa doble e inclina la balanza.",

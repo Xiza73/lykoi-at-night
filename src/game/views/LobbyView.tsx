@@ -11,6 +11,7 @@ import {
   configBalance,
   type BalanceBand,
 } from "../../domain/game/balance";
+import { roleWeight } from "../../domain/game/roles";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
 import { maxWolves } from "../roleLabels";
@@ -150,7 +151,7 @@ function CountStep({
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         <h3 style={headingStyle}>¿Cuántos gatos esta noche?</h3>
         <p style={subtitleStyle}>
-          Un solo teléfono, se pasa de mano en mano. Empezá por cuántos se sientan
+          Un solo teléfono, se pasa de mano en mano. Empieza por cuántos se sientan
           a la mesa.
         </p>
       </div>
@@ -225,14 +226,14 @@ const SPECIAL_LABELS: { key: keyof RoleConfig; label: string }[] = [
   { key: "hunter", label: "Cazador" },
   { key: "mayor", label: "Alcalde" },
   { key: "cupid", label: "Cupido" },
-  { key: "witch", label: "Bruja" },
+  { key: "witch", label: "Gata del Bosque" },
   { key: "littleRed", label: "Caperuza" },
 ];
 
 /** A one-line summary of what a preset deals at the current player count. */
 function presetSummary(preset: PresetId, count: number): string {
   if (preset === "custom") {
-    return "Armá tu propia mano, rol por rol.";
+    return "Arma tu propia mano, rol por rol.";
   }
   const config = presetConfig(preset, count);
   const wolves = `${config.werewolves} Lykoi`;
@@ -258,9 +259,9 @@ function PresetStep({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        <h3 style={headingStyle}>Elegí el modo</h3>
+        <h3 style={headingStyle}>Elige el modo</h3>
         <p style={subtitleStyle}>
-          Para {count} gatos. Podés ajustar la mano en el siguiente paso.
+          Para {count} gatos. Puedes ajustar la mano en el siguiente paso.
         </p>
       </div>
 
@@ -402,7 +403,7 @@ function TableStep({
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         <h3 style={headingStyle}>La mesa</h3>
         <p style={subtitleStyle}>
-          Confirmá la mano y anotá a cada gato. Después, a repartir.
+          Confirma la mano y anota a cada gato. Después, a repartir.
         </p>
       </div>
 
@@ -618,6 +619,9 @@ function RolePicker({
       >
         <span
           style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: "8px",
             fontSize: "10px",
             letterSpacing: ".26em",
             textTransform: "uppercase",
@@ -625,6 +629,7 @@ function RolePicker({
           }}
         >
           Lykoi
+          <RoleWeight weight={roleWeight("werewolf")} suffix=" c/u" />
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <StepButton
@@ -658,36 +663,43 @@ function RolePicker({
 
       <RoleToggle
         label="Vidente"
+        weight={roleWeight("seer")}
         active={config.seer}
         onToggle={() => onChange({ ...config, seer: !config.seer })}
       />
       <RoleToggle
-        label="Curandero del Callejón"
+        label="Curandero de la Camada"
+        weight={roleWeight("guardian")}
         active={config.guardian}
         onToggle={() => onChange({ ...config, guardian: !config.guardian })}
       />
       <RoleToggle
         label="Cazador de Sombras"
+        weight={roleWeight("hunter")}
         active={config.hunter ?? false}
         onToggle={() => onChange({ ...config, hunter: !config.hunter })}
       />
       <RoleToggle
-        label="Alcalde del Callejón"
+        label="Alcalde del Tejado"
+        weight={roleWeight("mayor")}
         active={config.mayor ?? false}
         onToggle={() => onChange({ ...config, mayor: !config.mayor })}
       />
       <RoleToggle
-        label="Cupido del Callejón"
+        label="Cupido"
+        weight={roleWeight("cupid")}
         active={config.cupid ?? false}
         onToggle={() => onChange({ ...config, cupid: !config.cupid })}
       />
       <RoleToggle
-        label="La Bruja del Callejón"
+        label="La Gata del Bosque"
+        weight={roleWeight("witch")}
         active={config.witch ?? false}
         onToggle={() => onChange({ ...config, witch: !config.witch })}
       />
       <RoleToggle
-        label="Caperuza del Callejón"
+        label="Caperuza"
+        weight={roleWeight("littleRed")}
         active={config.littleRed ?? false}
         onToggle={() => onChange({ ...config, littleRed: !config.littleRed })}
       />
@@ -699,13 +711,39 @@ function RolePicker({
   );
 }
 
+/**
+ * A subtle signed balance weight (e.g. "+7", "−2"), rendered in the muted style
+ * so it reads as a hint next to a role control without crowding it. The optional
+ * suffix carries "per unit" wording for the repeatable Lykoi stepper.
+ */
+function RoleWeight({ weight, suffix = "" }: { weight: number; suffix?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        fontSize: "10px",
+        fontVariantNumeric: "tabular-nums",
+        letterSpacing: "0",
+        textTransform: "none",
+        color: "var(--lyk-faint)",
+      }}
+    >
+      {formatSigned(weight)}
+      {suffix}
+    </span>
+  );
+}
+
 function RoleToggle({
   label,
+  weight,
   active = false,
   comingSoon = false,
   onToggle,
 }: {
   label: string;
+  /** The role's signed balance weight, shown as a subtle hint. */
+  weight?: number;
   active?: boolean;
   comingSoon?: boolean;
   onToggle?: () => void;
@@ -733,7 +771,10 @@ function RoleToggle({
         transition: "border-color .2s, color .2s, background .2s",
       }}
     >
-      <span>{label}</span>
+      <span style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+        {label}
+        {weight !== undefined ? <RoleWeight weight={weight} /> : null}
+      </span>
       <span
         style={{
           fontSize: "10px",

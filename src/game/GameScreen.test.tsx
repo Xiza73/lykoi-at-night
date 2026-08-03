@@ -114,15 +114,15 @@ async function fillMayorLobbyAndDeal(
 ) {
   await setCount(user, 6);
   await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add the Alcalde del Callejón.
-  await user.click(screen.getByRole("button", { name: /^alcalde del callejón$/i }));
+  // Personalizado starts from the Clásico hand; add the Alcalde del Tejado.
+  await user.click(screen.getByRole("button", { name: /^alcalde del tejado$/i }));
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
 /**
  * Fills a six-seat Cazador + Caperuza lobby via Personalizado (Clásico + the
- * Cazador de Sombras and Caperuza del Callejón toggles) and deals. With the
+ * Cazador de Sombras and Caperuza toggles) and deals. With the
  * identity shuffle the roles fall in seat order (push order:
  * wolf, seer, guardian, hunter, littleRed, then villagers): Ana (p1) wolf, Beto
  * (p2) seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva (p5) the Caperuza,
@@ -134,7 +134,7 @@ async function fillHunterLittleRedLobbyAndDeal(
   await setCount(user, 6);
   await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
   await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
-  await user.click(screen.getByRole("button", { name: /^caperuza del callejón$/i }));
+  await user.click(screen.getByRole("button", { name: /^caperuza$/i }));
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
@@ -148,14 +148,14 @@ async function openGate(user: ReturnType<typeof userEvent.setup>) {
  * Fills a six-seat Bruja lobby via Personalizado (Clásico + the La Bruja del
  * Callejón toggle) and deals. With the identity shuffle the roles fall in seat
  * order (push order: wolf, seer, guardian, witch, then villagers): Ana (p1) wolf,
- * Beto (p2) seer, Caro (p3) guardian, Dario (p4) the Bruja, Eva/Fabi villagers.
+ * Beto (p2) seer, Caro (p3) guardian, Dario (p4) the Gata del Bosque, Eva/Fabi villagers.
  */
 async function fillWitchLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
   await setCount(user, 6);
   await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add La Bruja del Callejón.
+  // Personalizado starts from the Clásico hand; add La Gata del Bosque.
   await user.click(
-    screen.getByRole("button", { name: /^la bruja del callejón$/i }),
+    screen.getByRole("button", { name: /^la gata del bosque$/i }),
   );
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
@@ -163,7 +163,7 @@ async function fillWitchLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
 
 /**
  * Fills a six-seat Cazador + Cupido lobby via Personalizado (Clásico + the
- * Cazador de Sombras and Cupido del Callejón toggles) and deals. With the
+ * Cazador de Sombras and Cupido toggles) and deals. With the
  * identity shuffle the roles fall in seat order (push order:
  * wolf, seer, guardian, hunter, cupid, then villagers): Ana (p1) wolf, Beto (p2)
  * seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva (p5) the Cupido, Fabi
@@ -175,7 +175,7 @@ async function fillHunterCupidLobbyAndDeal(
   await setCount(user, 6);
   await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
   await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
-  await user.click(screen.getByRole("button", { name: /^cupido del callejón$/i }));
+  await user.click(screen.getByRole("button", { name: /^cupido$/i }));
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
@@ -191,8 +191,8 @@ async function fillCupidLobbyAndDeal(
 ) {
   await setCount(user, 6);
   await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add the Cupido del Callejón.
-  await user.click(screen.getByRole("button", { name: /^cupido del callejón$/i }));
+  // Personalizado starts from the Clásico hand; add the Cupido.
+  await user.click(screen.getByRole("button", { name: /^cupido$/i }));
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
@@ -315,7 +315,7 @@ describe("GameScreen", () => {
     // Seat 1 — Ana (the lone Lykoi): votes Dario, a villager.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos un lykoi/i }),
+      screen.getByRole("heading", { name: /eres un lykoi/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /votar por dario/i }));
     await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
@@ -323,7 +323,7 @@ describe("GameScreen", () => {
     // Seat 2 — Beto (the Vidente): reads Eva.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos la vidente/i }),
+      screen.getByRole("heading", { name: /eres la vidente/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
@@ -331,7 +331,7 @@ describe("GameScreen", () => {
     // Seat 3 — Caro (the Curandero): wards nobody.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos el curandero del callejón/i }),
+      screen.getByRole("heading", { name: /eres el curandero de la camada/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
@@ -340,7 +340,7 @@ describe("GameScreen", () => {
     for (let i = 0; i < 3; i += 1) {
       await openGate(user);
       expect(
-        screen.getByText(/dormís tranquilo/i),
+        screen.getByText(/duermes tranquilo/i),
       ).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /^listo$/i }));
     }
@@ -378,7 +378,7 @@ describe("GameScreen", () => {
     // Seat 1 — Ana (wolf): votes Caro, a villager.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos un lykoi/i }),
+      screen.getByRole("heading", { name: /eres un lykoi/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /votar por caro/i }));
     await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
@@ -386,7 +386,7 @@ describe("GameScreen", () => {
     // Seat 2 — Beto (wolf): also votes Caro. The tally shows Ana's prior vote.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos un lykoi/i }),
+      screen.getByRole("heading", { name: /eres un lykoi/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/ana votó por caro/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /votar por caro/i }));
@@ -395,12 +395,12 @@ describe("GameScreen", () => {
     // Seats 3-5 — Caro, Dario, Eva (villagers): NO seer/guardian screens at all.
     for (let i = 0; i < 3; i += 1) {
       await openGate(user);
-      expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+      expect(screen.getByText(/duermes tranquilo/i)).toBeInTheDocument();
       expect(
-        screen.queryByRole("heading", { name: /sos la vidente/i }),
+        screen.queryByRole("heading", { name: /eres la vidente/i }),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("heading", { name: /sos el curandero/i }),
+        screen.queryByRole("heading", { name: /eres el curandero/i }),
       ).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /^listo$/i }));
     }
@@ -443,7 +443,7 @@ describe("GameScreen", () => {
     // Round 2 announced — the pack re-votes, again DIFFERENT villagers (a tie).
     await openGate(user); // Ana re-votes fresh
     expect(
-      screen.getByRole("heading", { name: /sos un lykoi/i }),
+      screen.getByRole("heading", { name: /eres un lykoi/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /votar por caro/i }));
     await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
@@ -670,7 +670,7 @@ describe("GameScreen", () => {
     // Seat 4 — Dario (the Cazador): pre-commits Beto (seat 2) as his shot.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos el cazador de sombras/i }),
+      screen.getByRole("heading", { name: /eres el cazador de sombras/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /llevarse a beto/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
@@ -828,10 +828,10 @@ describe("GameScreen", () => {
     expect(balance).toHaveTextContent("+7");
     expect(balance).toHaveTextContent(/muy a favor del pueblo/i);
 
-    // Drop the Curandero del Callejón: its seat becomes a villager, so the total
+    // Drop the Curandero de la Camada: its seat becomes a villager, so the total
     // falls by the guardian's +3 minus the villager's +1 — a net −2, to +5.
     await user.click(
-      screen.getByRole("button", { name: /^curandero del callejón$/i }),
+      screen.getByRole("button", { name: /^curandero de la camada$/i }),
     );
     expect(balance).toHaveTextContent("+5");
   });
@@ -896,7 +896,7 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
     await openGate(user); // Caro (Curandero): cures Fabi
     expect(
-      screen.getByRole("heading", { name: /sos el curandero del callejón/i }),
+      screen.getByRole("heading", { name: /eres el curandero de la camada/i }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /curar a fabi/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
@@ -924,7 +924,7 @@ describe("GameScreen", () => {
     // offered tonight, while another living cat (Eva) still is.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos el curandero del callejón/i }),
+      screen.getByRole("heading", { name: /eres el curandero de la camada/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /curar a fabi/i }),
@@ -934,8 +934,72 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
     // The exclusion note names last night's ward.
     expect(
-      screen.getByText(/no podés cuidar a fabi otra vez/i),
+      screen.getByText(/no puedes cuidar a fabi otra vez/i),
     ).toBeInTheDocument();
+  });
+
+  it("hides the Curandero's exclusion note when last night's ward is now dead", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1 — Ana (wolf) kills Fabi, Beto (seer) reads Eva, Caro (the
+    // Curandero) wards Dario (a cat the wolves did NOT target, so he survives the
+    // night), the rest pass. Dario becomes last night's ward while still alive.
+    await openGate(user); // Ana (wolf): targets Fabi
+    await user.click(screen.getByRole("button", { name: /votar por fabi/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (Curandero): wards Dario
+    await user.click(screen.getByRole("button", { name: /curar a dario/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user); // Dario, Eva, Fabi (villagers)
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Dawn: Fabi fell (the ward was on Dario, not the victim).
+    expect(
+      screen.getByText(/fabi no volvió al callejón/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+
+    // Day 1 — the town banishes Dario, last night's ward. Living seat order:
+    // Ana, Beto, Caro, Dario, Eva (Fabi is dead).
+    await driveDayVote(user, [
+      ["Ana", "Dario"],
+      ["Beto", "Dario"],
+      ["Caro", "Dario"],
+      ["Dario", null],
+      ["Eva", "Dario"],
+    ]);
+    await user.click(screen.getByRole("button", { name: /cae la noche/i }));
+
+    // Night 2 — walk to the Curandero. Ana votes Eva, Beto reads Ana.
+    await openGate(user); // Ana (wolf)
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a ana/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 3 — Caro (the Curandero). lastWarded points at Dario, who is now DEAD,
+    // so the exclusion note is suppressed (a dead cat is never a candidate).
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /eres el curandero de la camada/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/no puedes cuidar a dario otra vez/i),
+    ).not.toBeInTheDocument();
+    // Dario is not offered either — dead cats are off the grid.
+    expect(
+      screen.queryByRole("button", { name: /curar a dario/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("the Cupido links two cats on night 1; a lovers-reveal pass tells each their partner; killing one chains the other", async () => {
@@ -962,7 +1026,7 @@ describe("GameScreen", () => {
     // exactly two are chosen.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos cupido/i }),
+      screen.getByRole("heading", { name: /eres cupido/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /enamorar a estos dos/i }),
@@ -1077,17 +1141,17 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
     // Seat 4 — Dario (the Cupido) on NIGHT 2: no pairing screen, just the sleep
-    // pass. The two-select confirm must be gone, and instead of the bare "Sos
-    // Cupido" action heading he sees the villager-style sleep screen naming his
-    // full role title ("Sos Cupido del Callejón").
+    // pass. The two-select confirm must be gone, and instead of the pairing
+    // action he sees the villager-style sleep screen naming his role ("Eres
+    // Cupido").
     await openGate(user);
     expect(
       screen.queryByRole("button", { name: /enamorar a estos dos/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /sos cupido del callejón/i }),
+      screen.getByRole("heading", { name: /eres cupido/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+    expect(screen.getByText(/duermes tranquilo/i)).toBeInTheDocument();
   });
 
   it("a triple-death night (Cazador who is also a lover, with a shot) names ALL three fallen at dawn", async () => {
@@ -1174,9 +1238,9 @@ describe("GameScreen", () => {
     // full role title.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos caperuza del callejón/i }),
+      screen.getByRole("heading", { name: /eres caperuza/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+    expect(screen.getByText(/duermes tranquilo/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
     // Seat 6 — Fabi (villager): plain pass.
@@ -1191,7 +1255,7 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("the Bruja reserves her blind heal: the pack's victim is saved and the potion is spent", async () => {
+  it("the Gata del Bosque reserves her blind heal: the pack's victim is saved and the potion is spent", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
@@ -1199,7 +1263,7 @@ describe("GameScreen", () => {
     await walkReveal(user);
 
     // Night 1: Ana (wolf) votes Eva, Beto (seer) reads Fabi, Caro (guardian) wards
-    // nobody, Dario (the Bruja) reserves the blind life potion (no poison), Eva and
+    // nobody, Dario (the Gata del Bosque) reserves the blind life potion (no poison), Eva and
     // Fabi pass. The heal saves the pack's target — nobody falls.
     await openGate(user); // Ana (wolf)
     await user.click(screen.getByRole("button", { name: /votar por eva/i }));
@@ -1211,10 +1275,10 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Seat 4 — Dario (the Bruja): reserves the life potion, poisons no one.
+    // Seat 4 — Dario (the Gata del Bosque): reserves the life potion, poisons no one.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos la bruja del callejón/i }),
+      screen.getByRole("heading", { name: /eres la gata del bosque/i }),
     ).toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: /reservar la poción de vida/i }),
@@ -1234,7 +1298,7 @@ describe("GameScreen", () => {
     // Day 1 — skip the lynch straight into night 2.
     await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
 
-    // Night 2 — walk to the Bruja's seat. Ana votes Eva, Beto reads Fabi, Caro
+    // Night 2 — walk to the Gata del Bosque's seat. Ana votes Eva, Beto reads Fabi, Caro
     // wards nobody.
     await openGate(user); // Ana (wolf)
     await user.click(screen.getByRole("button", { name: /votar por eva/i }));
@@ -1246,7 +1310,7 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Seat 4 — Dario (the Bruja): the life potion is SPENT, so its reserve toggle
+    // Seat 4 — Dario (the Gata del Bosque): the life potion is SPENT, so its reserve toggle
     // is gone; only the poison remains available.
     await openGate(user);
     expect(
@@ -1257,7 +1321,7 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("the Bruja's poison kills through the Curandero's ward and dawn names the fallen", async () => {
+  it("the Gata del Bosque's poison kills through the Curandero's ward and dawn names the fallen", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
@@ -1265,7 +1329,7 @@ describe("GameScreen", () => {
     await walkReveal(user);
 
     // Night 1: Ana (wolf) votes Eva, Beto (seer) reads Fabi, Caro (guardian) wards
-    // EVA (which stops the wolves' attack on her), Dario (the Bruja) poisons Eva —
+    // EVA (which stops the wolves' attack on her), Dario (the Gata del Bosque) poisons Eva —
     // the poison ignores the ward, so Eva still dies. Eva/Fabi pass.
     await openGate(user); // Ana (wolf)
     await user.click(screen.getByRole("button", { name: /votar por eva/i }));
@@ -1277,7 +1341,7 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /curar a eva/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Seat 4 — Dario (the Bruja): no heal, poisons Eva.
+    // Seat 4 — Dario (the Gata del Bosque): no heal, poisons Eva.
     await openGate(user);
     await user.click(screen.getByRole("button", { name: /envenenar a eva/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
@@ -1295,7 +1359,7 @@ describe("GameScreen", () => {
     expect(screen.getByLabelText(/eva \(caído\)/i)).toBeInTheDocument();
   });
 
-  it("the Bruja has no night action once both potions are spent", async () => {
+  it("the Gata del Bosque has no night action once both potions are spent", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
@@ -1303,7 +1367,7 @@ describe("GameScreen", () => {
     await walkReveal(user);
 
     // Night 1: Ana (wolf) votes Eva, Beto (seer) reads Ana, Caro (guardian) wards
-    // nobody, Dario (the Bruja) reserves the heal (saving Eva) AND poisons Fabi.
+    // nobody, Dario (the Gata del Bosque) reserves the heal (saving Eva) AND poisons Fabi.
     // Eva/Fabi pass. Both potions are spent this night.
     await openGate(user); // Ana (wolf)
     await user.click(screen.getByRole("button", { name: /votar por eva/i }));
@@ -1315,7 +1379,7 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Seat 4 — Dario (the Bruja): reserve heal AND poison Fabi.
+    // Seat 4 — Dario (the Gata del Bosque): reserve heal AND poison Fabi.
     await openGate(user);
     await user.click(
       screen.getByRole("button", { name: /reservar la poción de vida/i }),
@@ -1337,7 +1401,7 @@ describe("GameScreen", () => {
     // Day 1 — skip the lynch straight into night 2.
     await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
 
-    // Night 2 — walk to the Bruja's seat (Fabi is dead; living seats: Ana, Beto,
+    // Night 2 — walk to the Gata del Bosque's seat (Fabi is dead; living seats: Ana, Beto,
     // Caro, Dario, Eva). Ana votes Eva, Beto reads Ana, Caro wards nobody.
     await openGate(user); // Ana (wolf)
     await user.click(screen.getByRole("button", { name: /votar por eva/i }));
@@ -1349,13 +1413,13 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Seat 4 — Dario (the Bruja) with BOTH potions spent: the plain sleep screen,
+    // Seat 4 — Dario (the Gata del Bosque) with BOTH potions spent: the plain sleep screen,
     // no reserve toggle and no poison targets.
     await openGate(user);
     expect(
-      screen.getByRole("heading", { name: /sos la bruja del callejón/i }),
+      screen.getByRole("heading", { name: /eres la gata del bosque/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+    expect(screen.getByText(/duermes tranquilo/i)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /reservar la poción de vida/i }),
     ).not.toBeInTheDocument();

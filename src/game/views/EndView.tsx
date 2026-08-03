@@ -19,7 +19,7 @@ export function EndView({ winner, onReset }: EndViewProps) {
     : "Los Lykoi se quedan el callejón";
   const text = townWon
     ? "El último Lykoi cayó. Nadie habla de lo que costó."
-    : "Ya son tantos como vosotros. Votar dejó de significar algo.";
+    : "Ya son tantos como ustedes. Votar dejó de significar algo.";
 
   return (
     <div

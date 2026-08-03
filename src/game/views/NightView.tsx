@@ -269,13 +269,13 @@ function ActionTurn({
 
     return (
       <Frame
-        title="Sos un Lykoi"
-        body="Votá a quién se lleva la oscuridad esta noche."
+        title="Eres un Lykoi"
+        body="Vota a quién se lleva la oscuridad esta noche."
       >
         <Note tone="var(--lyk-blood-bright)">
           {pack.length > 0
             ? `La manada: ${pack.join(", ")}`
-            : "Cazás en soledad esta noche."}
+            : "Cazas en soledad esta noche."}
         </Note>
         {castLines.length > 0 ? (
           <Note tone="var(--lyk-gold)">
@@ -304,7 +304,7 @@ function ActionTurn({
     return (
       <Frame
         title="La manada volvió a dudar"
-        body="Vos no votás — pasá."
+        body="Tú no votas — pasa."
       >
         <div style={{ marginTop: "auto" }}>
           <PrimaryButton onClick={onConfirmAction}>Siguiente</PrimaryButton>
@@ -328,7 +328,7 @@ function ActionTurn({
       reading === "wolves" ? "var(--lyk-blood-bright)" : "var(--lyk-gold)";
 
     return (
-      <Frame title="Sos la Vidente" body="Mirá a un gato y sabé si ronronea de verdad.">
+      <Frame title="Eres la Vidente" body="Mira a un gato y sabe si ronronea de verdad.">
         <PlayerGrid
           players={living}
           selectedId={seerTargetId}
@@ -346,20 +346,25 @@ function ActionTurn({
   if (seated.role === "guardian") {
     // The Curandero can never watch over himself, nor the same cat two nights
     // running: exclude both his own seat and last night's ward from the grid.
-    const lastWardedName = lastWarded
-      ? game.players.find((player) => player.id === lastWarded)?.name
+    // The "already warded" note is only meaningful when last night's ward is
+    // still ALIVE — a dead cat is not a candidate anyway, so the note would just
+    // point at an irrelevant exclusion.
+    const lastWardedPlayer = lastWarded
+      ? game.players.find((player) => player.id === lastWarded)
       : undefined;
+    const lastWardedName =
+      lastWardedPlayer && lastWardedPlayer.alive ? lastWardedPlayer.name : undefined;
     const candidates = living.filter(
       (player) => player.id !== seated.id && player.id !== lastWarded,
     );
     return (
       <Frame
-        title="Sos el Curandero del Callejón"
-        body="Curá a un gato esta noche y sobrevivirá a un ataque. Nunca a vos mismo."
+        title="Eres el Curandero de la Camada"
+        body="Cura a un gato esta noche y sobrevivirá a un ataque. Nunca a ti mismo."
       >
         {lastWardedName ? (
           <Note tone="var(--lyk-gold)">
-            No podés cuidar a {lastWardedName} otra vez: anoche ya lo curaste.
+            No puedes cuidar a {lastWardedName} otra vez: anoche ya lo curaste.
           </Note>
         ) : null}
         <PlayerGrid
@@ -387,8 +392,8 @@ function ActionTurn({
     const candidates = living.filter((player) => player.id !== seated.id);
     return (
       <Frame
-        title="Sos el Cazador de Sombras"
-        body="Si esta noche te matan, ¿a quién te llevás con vos?"
+        title="Eres el Cazador de Sombras"
+        body="Si esta noche te matan, ¿a quién te llevas contigo?"
       >
         <PlayerGrid
           players={candidates}
@@ -420,8 +425,8 @@ function ActionTurn({
       .filter((name): name is string => name !== undefined);
     return (
       <Frame
-        title="Sos Cupido"
-        body="Esta primera noche enlazás a dos gatos para toda la partida. Podés incluirte. Si uno cae, el otro lo sigue."
+        title="Eres Cupido"
+        body="Esta primera noche enlazas a dos gatos para toda la partida. Puedes incluirte. Si uno cae, el otro lo sigue."
       >
         {chosen.length > 0 ? (
           <Note tone="var(--lyk-gold)">
@@ -457,8 +462,8 @@ function ActionTurn({
     const poisonCandidates = living.filter((player) => player.id !== seated.id);
     return (
       <Frame
-        title="Sos la Bruja del Callejón"
-        body="Dos frascos, uno por partida. Usá los que quieras esta noche."
+        title="Eres la Gata del Bosque"
+        body="Dos frascos, uno por partida. Usa los que quieras esta noche."
       >
         {game.witchHeal ? (
           <>
@@ -502,8 +507,8 @@ function ActionTurn({
   // night action.
   return (
     <Frame
-      title={`Sos ${roleInfo(seated.role).name}`}
-      body="Dormís tranquilo, nada que hacer esta noche."
+      title={`Eres ${roleInfo(seated.role).name}`}
+      body="Duermes tranquilo, nada que hacer esta noche."
     >
       <div style={{ marginTop: "auto" }}>
         <PrimaryButton onClick={onConfirmAction}>Listo</PrimaryButton>

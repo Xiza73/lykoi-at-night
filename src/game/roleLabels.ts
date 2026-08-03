@@ -36,10 +36,10 @@ export function roleInfo(role: Role): RoleInfo {
       };
     case "guardian":
       return {
-        name: "Curandero del Callejón",
+        name: "Curandero de la Camada",
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
-        desc: "Cada noche curás a un gato y sobrevive a un ataque. Nunca a vos mismo, ni al mismo dos noches seguidas.",
+        desc: "Cada noche curas a un gato y sobrevive a un ataque. Nunca a ti mismo, ni al mismo dos noches seguidas.",
       };
     case "hunter":
       return {
@@ -50,31 +50,31 @@ export function roleInfo(role: Role): RoleInfo {
       };
     case "mayor":
       return {
-        name: "Alcalde del Callejón",
+        name: "Alcalde del Tejado",
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
         desc: "Cuando el destierro queda empatado, tu palabra pesa doble e inclina la balanza.",
       };
     case "cupid":
       return {
-        name: "Cupido del Callejón",
+        name: "Cupido",
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
         desc: "La primera noche enlaza a dos gatos enamorados. Si uno cae, el otro lo sigue.",
       };
     case "witch":
       return {
-        name: "La Bruja del Callejón",
+        name: "La Gata del Bosque",
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
-        desc: "Guardás dos frascos, uno por partida: una poción de vida que salva a quien la manada marque, y un veneno que mata aunque lo estén curando.",
+        desc: "Guardas dos frascos, uno por partida: una poción de vida que salva a quien la manada marque, y un veneno que mata aunque lo estén curando.",
       };
     case "littleRed":
       return {
-        name: "Caperuza del Callejón",
+        name: "Caperuza",
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
-        desc: "Mientras el Cazador respire, los Lykoi no pueden llevarte en la noche. No tenés nada que hacer: solo dormir a salvo.",
+        desc: "Mientras el Cazador respire, los Lykoi no pueden llevarte en la noche. No tienes nada que hacer: solo dormir a salvo.",
       };
     case "villager":
       return {
