@@ -369,7 +369,8 @@ function TableStep({
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
     (config.hunter ? 1 : 0) +
-    (config.insomniac ? 1 : 0);
+    (config.insomniac ? 1 : 0) +
+    (config.gossip ? 1 : 0);
   const town = count - wolfCount;
   const configValid =
     config.werewolves >= 1 && wolfCount < town && specials <= count;
@@ -558,6 +559,11 @@ function RolePicker({
         label="El Insomne"
         active={config.insomniac ?? false}
         onToggle={() => onChange({ ...config, insomniac: !config.insomniac })}
+      />
+      <RoleToggle
+        label="La Chismosa"
+        active={config.gossip ?? false}
+        onToggle={() => onChange({ ...config, gossip: !config.gossip })}
       />
 
       {showComingSoon

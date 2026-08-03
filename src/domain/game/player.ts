@@ -30,6 +30,7 @@ export interface RoleConfig {
   readonly infector?: boolean;
   readonly trickster?: boolean;
   readonly insomniac?: boolean;
+  readonly gossip?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -71,7 +72,8 @@ export function dealRoles(
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
     (config.hunter ? 1 : 0) +
-    (config.insomniac ? 1 : 0);
+    (config.insomniac ? 1 : 0) +
+    (config.gossip ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -101,6 +103,9 @@ export function dealRoles(
   }
   if (config.insomniac) {
     roles.push("insomniac");
+  }
+  if (config.gossip) {
+    roles.push("gossip");
   }
   while (roles.length < seats.length) {
     roles.push("villager");

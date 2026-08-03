@@ -69,6 +69,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-gold)",
         desc: "No duerme: oye cuántos Lykoi rondaron esa noche, nunca quiénes.",
       };
+    case "gossip":
+      return {
+        name: "La Chismosa",
+        faction: "Vecindario",
+        tone: "var(--lyk-gold)",
+        desc: "Espía el rol de un gato caído. Y lo cuenta. O miente.",
+      };
     case "villager":
       return {
         name: "Gato Doméstico",

@@ -64,6 +64,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   // The Madre Camada's chosen townsperson to convert, or null for "pass".
   const [infectTargetId, setInfectTargetId] = useState<string | null>(null);
   const [seerTargetId, setSeerTargetId] = useState<string | null>(null);
+  // The dead cat La Chismosa peeked this night, or null. A live info read only.
+  const [gossipTargetId, setGossipTargetId] = useState<string | null>(null);
   // The freshly-turned player's name, shown on the private "you were turned" gate
   // before dawn. Null unless an infection actually landed this night.
   const [turnedName, setTurnedName] = useState<string | null>(null);
@@ -92,6 +94,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setWolfTargetId(null);
     setInfectTargetId(null);
     setSeerTargetId(null);
+    setGossipTargetId(null);
     setDawnVictimName(null);
     setTurnedName(null);
   };
@@ -376,6 +379,9 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       // shown while she's in play (even dead / power spent); the domain ignores
       // an invalid or repeat infection.
       const hasInfector = game.players.some((p) => p.role === "infector");
+      // La Chismosa's turn is gated by her role being in the game — always shown
+      // while she's in play (even dead) so the private peek never leaks who lives.
+      const hasGossip = game.players.some((p) => p.role === "gossip");
       return (
         <NightView
           game={game}
@@ -384,6 +390,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           wolfTargetId={wolfTargetId}
           infectTargetId={infectTargetId}
           seerTargetId={seerTargetId}
+          gossipTargetId={gossipTargetId}
           victimName={dawnVictimName}
           onOpenGate={setNightStep}
           onSelectProtected={setProtectedId}
@@ -397,6 +404,12 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
           onSelectInfectTarget={setInfectTargetId}
           onConfirmInfectTarget={() => setNightStep("seer-gate")}
           onSelectSeerTarget={setSeerTargetId}
+          onConfirmSeer={() =>
+            // La Chismosa's turn follows the Seer only when her role is in play;
+            // otherwise the night resolves straight away.
+            hasGossip ? setNightStep("gossip-gate") : handleResolveNight()
+          }
+          onSelectGossipTarget={setGossipTargetId}
           onResolve={handleResolveNight}
           onDawnContinue={handleDawnContinue}
         />

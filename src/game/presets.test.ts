@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, MIN_PLAYERS } from "../domain/game/player";
-import { presetConfig, recommendedWolves } from "./presets";
+import { COMING_SOON_ROLES, presetConfig, recommendedWolves } from "./presets";
 
 describe("recommendedWolves", () => {
   it("scales roughly one wolf per four cats", () => {
@@ -53,5 +53,9 @@ describe("presetConfig", () => {
 
   it("Personalizado starts from the Clásico hand", () => {
     expect(presetConfig("custom", 6)).toEqual(presetConfig("classic", 6));
+  });
+
+  it("has no coming-soon roles left: all nine are implemented", () => {
+    expect(COMING_SOON_ROLES).toEqual([]);
   });
 });

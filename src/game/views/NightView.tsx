@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Game } from "../../domain/game/game";
-import { investigate, livingTown } from "../../domain/game/game";
+import { investigate, livingTown, peekRole } from "../../domain/game/game";
 import type { Player } from "../../domain/game/player";
+import { roleInfo } from "../roleLabels";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CatIcon } from "../components/CatIcon";
 
@@ -19,6 +20,8 @@ export type NightStep =
   | "infector-pick"
   | "seer-gate"
   | "seer-pick"
+  | "gossip-gate"
+  | "gossip-pick"
   | "dawn";
 
 interface NightViewProps {
@@ -32,6 +35,8 @@ interface NightViewProps {
   infectTargetId: string | null;
   /** The player the Seer looked at this night, if any. */
   seerTargetId: string | null;
+  /** The dead cat La Chismosa peeked this night, if any. */
+  gossipTargetId: string | null;
   /** Whether the wolves' victim died this night (from the dawn snapshot). */
   victimName: string | null;
   onOpenGate: (next: NightStep) => void;
@@ -42,6 +47,9 @@ interface NightViewProps {
   onSelectInfectTarget: (playerId: string | null) => void;
   onConfirmInfectTarget: () => void;
   onSelectSeerTarget: (playerId: string) => void;
+  /** Advances past the Seer's reading (to La Chismosa's turn or straight to dawn). */
+  onConfirmSeer: () => void;
+  onSelectGossipTarget: (playerId: string) => void;
   onResolve: () => void;
   onDawnContinue: () => void;
 }
@@ -59,6 +67,7 @@ export function NightView({
   wolfTargetId,
   infectTargetId,
   seerTargetId,
+  gossipTargetId,
   victimName,
   onOpenGate,
   onSelectProtected,
@@ -68,6 +77,8 @@ export function NightView({
   onSelectInfectTarget,
   onConfirmInfectTarget,
   onSelectSeerTarget,
+  onConfirmSeer,
+  onSelectGossipTarget,
   onResolve,
   onDawnContinue,
 }: NightViewProps) {
@@ -245,6 +256,77 @@ export function NightView({
             }}
           >
             {readingText}
+          </div>
+        ) : null}
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={onConfirmSeer}>Listo</PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (step === "gossip-gate") {
+    return (
+      <Frame
+        title="La Chismosa"
+        body="Pásale el teléfono a La Chismosa. Que los demás aparten la mirada."
+      >
+        <div style={{ marginTop: "auto" }}>
+          <PrimaryButton onClick={() => onOpenGate("gossip-pick")}>
+            Ya lo tengo
+          </PrimaryButton>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (step === "gossip-pick") {
+    const dead = game.players.filter((player) => !player.alive);
+    const target = gossipTargetId
+      ? game.players.find((player) => player.id === gossipTargetId)
+      : undefined;
+    const peekedRole = target ? peekRole(game, target.id) : null;
+    const gossipText =
+      target && peekedRole
+        ? `${target.name} era ${roleInfo(peekedRole).name}.`
+        : null;
+
+    if (dead.length === 0) {
+      return (
+        <Frame
+          title="El chisme"
+          body="Todavía no ha caído nadie. No hay chisme esta noche."
+        >
+          <div style={{ marginTop: "auto" }}>
+            <PrimaryButton onClick={onResolve}>Listo</PrimaryButton>
+          </div>
+        </Frame>
+      );
+    }
+
+    return (
+      <Frame
+        title="El chisme"
+        body="Espía el rol de un gato caído. Si no sos La Chismosa, pasá sin tocar."
+      >
+        <PlayerGrid
+          players={dead}
+          selectedId={gossipTargetId}
+          actionLabel={(name) => `Espiar a ${name}`}
+          onSelect={onSelectGossipTarget}
+        />
+        {gossipText ? (
+          <div
+            style={{
+              padding: "12px 14px",
+              borderLeft: "2px solid var(--lyk-gold)",
+              background: "rgba(255,255,255,.03)",
+              fontSize: "13px",
+              lineHeight: 1.5,
+              color: "var(--lyk-ink)",
+            }}
+          >
+            {gossipText}
           </div>
         ) : null}
         <div style={{ marginTop: "auto" }}>

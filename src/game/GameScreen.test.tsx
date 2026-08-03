@@ -156,6 +156,20 @@ async function fillInsomniacLobbyAndDeal(
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
+/**
+ * Fills a six-seat lobby via Personalizado (Clásico + La Chismosa) and deals.
+ * With the identity shuffle the roles fall in seat order: Ana (p1) wolf, Beto
+ * (p2) seer, Caro (p3) guardian, Dario (p4) La Chismosa, Eva/Fabi villagers.
+ */
+async function fillGossipLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  // Personalizado starts from the Clásico hand; add La Chismosa.
+  await user.click(screen.getByRole("button", { name: /^la chismosa$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -392,6 +406,55 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
     expect(
       screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("La Chismosa peeks a fallen cat's role, after the first-night 'no chisme' case", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillGossipLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1: guardian passes, wolves take Eva (a villager), seer looks at Fabi.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a eva/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // La Chismosa's gate, then her turn: nobody has fallen yet on night one.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    expect(
+      screen.getByText(/todavía no ha caído nadie\. no hay chisme esta noche/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Dawn reports Eva's fall; skip the day's vote into night two.
+    expect(screen.getByText(/eva no volvió al callejón/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    await user.click(screen.getByRole("button", { name: /que nadie caiga hoy/i }));
+
+    // Night 2: guardian passes, wolves take Fabi, seer looks at Caro.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    await user.click(screen.getByRole("button", { name: /elegir a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /mirar a caro/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // La Chismosa's turn: Eva has fallen. Peek her — she was a Gato Doméstico.
+    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    await user.click(screen.getByRole("button", { name: /espiar a eva/i }));
+    expect(
+      screen.getByText(/eva era gato doméstico/i),
     ).toBeInTheDocument();
   });
 

@@ -8,7 +8,7 @@ import {
   type RoleConfig,
   type Seat,
 } from "./player";
-import { isWolf, seerReadingOf, type Alignment } from "./roles";
+import { isWolf, seerReadingOf, type Alignment, type Role } from "./roles";
 import type { Shuffle } from "./shuffle";
 
 export type GameStatus = "in_progress" | "ended";
@@ -103,6 +103,12 @@ export function advancePhase(game: Game): Game {
 export function investigate(game: Game, targetId: PlayerId): Alignment | null {
   const target = game.players.find((player) => player.id === targetId);
   return target ? seerReadingOf(target.role) : null;
+}
+
+/** La Chismosa's peek: the true role of a cat (the UI targets the fallen). */
+export function peekRole(game: Game, targetId: PlayerId): Role | null {
+  const target = game.players.find((player) => player.id === targetId);
+  return target ? target.role : null;
 }
 
 /**

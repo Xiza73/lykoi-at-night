@@ -7,6 +7,7 @@ export type Role =
   | "guardian"
   | "hunter"
   | "insomniac"
+  | "gossip"
   | "villager";
 
 /** The two teams. */
