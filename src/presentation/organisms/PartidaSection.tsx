@@ -24,16 +24,19 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
     >
       <div
         style={{
-          maxWidth: "600px",
+          maxWidth: "1120px",
           margin: "0 auto",
           display: "flex",
-          flexDirection: "column",
-          gap: "clamp(24px, 5vw, 44px)",
-          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "clamp(28px, 4vw, 56px)",
+          alignItems: "flex-start",
+          justifyContent: "center",
         }}
       >
         <div
           style={{
+            flex: "1 1 320px",
+            maxWidth: "460px",
             display: "flex",
             flexDirection: "column",
             gap: "20px",
@@ -103,7 +106,13 @@ export function PartidaSection({ shuffle }: PartidaSectionProps) {
           </div>
         </div>
 
-        <div style={{ margin: "0 auto" }}>
+        <div
+          style={{
+            flex: "0 1 430px",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
           <GameScreen shuffle={shuffle} />
         </div>
       </div>

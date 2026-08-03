@@ -135,7 +135,15 @@ export function RevealView({ player, tryal, isLast, onPass }: RevealViewProps) {
             >
               {faction}
             </div>
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: "6px",
+                maxWidth: "100%",
+              }}
+            >
               {tryal.cards.map((card, index) => (
                 <span
                   key={index}
