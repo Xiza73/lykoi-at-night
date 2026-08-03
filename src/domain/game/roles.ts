@@ -7,6 +7,7 @@ export type Role =
   | "mayor"
   | "cupid"
   | "witch"
+  | "littleRed"
   | "villager";
 
 /** The two teams. */
@@ -35,6 +36,7 @@ export const ROLE_WEIGHT: Record<Role, number> = {
   mayor: 2, // the Alcalde: a conditional day-vote tie-break
   cupid: -2, // Cupido: the lover bond is a liability the pack can exploit
   witch: 5, // La Bruja: a blind heal plus an unstoppable poison, both one-shot
+  littleRed: 3, // Caperucita: untouchable by the wolves while the Cazador lives
   villager: 1,
 };
 

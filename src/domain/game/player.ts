@@ -30,6 +30,27 @@ export interface RoleConfig {
   readonly mayor?: boolean;
   readonly cupid?: boolean;
   readonly witch?: boolean;
+  readonly littleRed?: boolean;
+}
+
+/**
+ * The number of NON-villager seats a config deals: the werewolves plus every
+ * enabled special role. The remaining `count - countSpecials(config)` seats
+ * become villagers. This is the single source of truth for the specials tally —
+ * dealing, balance scoring and the lobby's validity gate all call it, so adding
+ * a new role can never leave the sites out of sync.
+ */
+export function countSpecials(config: RoleConfig): number {
+  return (
+    config.werewolves +
+    (config.seer ? 1 : 0) +
+    (config.guardian ? 1 : 0) +
+    (config.hunter ? 1 : 0) +
+    (config.mayor ? 1 : 0) +
+    (config.cupid ? 1 : 0) +
+    (config.witch ? 1 : 0) +
+    (config.littleRed ? 1 : 0)
+  );
 }
 
 /** Creates a living player with the given role. */
@@ -65,14 +86,7 @@ export function dealRoles(
     throw new RangeError("A game needs at least one werewolf");
   }
   const wolfCount = config.werewolves;
-  const specials =
-    wolfCount +
-    (config.seer ? 1 : 0) +
-    (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0) +
-    (config.mayor ? 1 : 0) +
-    (config.cupid ? 1 : 0) +
-    (config.witch ? 1 : 0);
+  const specials = countSpecials(config);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -102,6 +116,9 @@ export function dealRoles(
   }
   if (config.witch) {
     roles.push("witch");
+  }
+  if (config.littleRed) {
+    roles.push("littleRed");
   }
   while (roles.length < seats.length) {
     roles.push("villager");

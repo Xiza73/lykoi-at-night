@@ -120,6 +120,25 @@ async function fillMayorLobbyAndDeal(
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
+/**
+ * Fills a six-seat Cazador + Caperuza lobby via Personalizado (Clásico + the
+ * Cazador de Sombras and Caperuza del Callejón toggles) and deals. With the
+ * identity shuffle the roles fall in seat order (push order:
+ * wolf, seer, guardian, hunter, littleRed, then villagers): Ana (p1) wolf, Beto
+ * (p2) seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva (p5) the Caperuza,
+ * Fabi (p6) villager.
+ */
+async function fillHunterLittleRedLobbyAndDeal(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await setCount(user, 6);
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
+  await user.click(screen.getByRole("button", { name: /^caperuza del callejón$/i }));
+  await renameSeats(user, NAMES);
+  await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
+}
+
 /** Opens the current seat's gate ("Ya lo tengo") to reveal their action. */
 async function openGate(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
@@ -1125,6 +1144,51 @@ describe("GameScreen", () => {
     expect(screen.getByLabelText(/dario \(caído\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/beto \(caído\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/fabi \(caído\)/i)).toBeInTheDocument();
+  });
+
+  it("the Caperuza survives the wolves while the Cazador lives — dawn reports no death, and she has no night action", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillHunterLittleRedLobbyAndDeal(user);
+    await walkReveal(user);
+
+    // Night 1: Ana (wolf) votes Eva (the Caperuza), Beto (seer) reads Fabi, Caro
+    // (guardian) wards nobody, Dario (the Cazador) pre-commits nobody, Eva (the
+    // Caperuza) sleeps with no action, Fabi passes. The wolves cannot take Eva
+    // while Dario breathes, so nobody falls.
+    await openGate(user); // Ana (wolf): votes Eva
+    await user.click(screen.getByRole("button", { name: /votar por eva/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto (seer)
+    await user.click(screen.getByRole("button", { name: /mirar a fabi/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Caro (guardian): wards nobody
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user); // Dario (Cazador): pre-commits nobody
+    await user.click(screen.getByRole("button", { name: /^a nadie$/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 5 — Eva (the Caperuza): NO action, the plain sleep screen naming her
+    // full role title.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos caperuza del callejón/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 6 — Fabi (villager): plain pass.
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Dawn: the Caperuza was untouchable while the Cazador lived — no death.
+    expect(screen.getByText(/amaneció sin bajas/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
+    expect(
+      screen.getByRole("heading", { name: /el callejón murmura/i }),
+    ).toBeInTheDocument();
   });
 
   it("the Bruja reserves her blind heal: the pack's victim is saved and the potion is spent", async () => {

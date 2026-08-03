@@ -69,6 +69,13 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-gold)",
         desc: "Guardás dos frascos, uno por partida: una poción de vida que salva a quien la manada marque, y un veneno que mata aunque lo estén curando.",
       };
+    case "littleRed":
+      return {
+        name: "Caperuza del Callejón",
+        faction: "Vecindario",
+        tone: "var(--lyk-gold)",
+        desc: "Mientras el Cazador respire, los Lykoi no pueden llevarte en la noche. No tenés nada que hacer: solo dormir a salvo.",
+      };
     case "villager":
       return {
         name: "Gato Doméstico",

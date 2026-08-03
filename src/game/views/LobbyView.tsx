@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  countSpecials,
   MAX_PLAYERS,
   MIN_PLAYERS,
   type RoleConfig,
@@ -225,6 +226,7 @@ const SPECIAL_LABELS: { key: keyof RoleConfig; label: string }[] = [
   { key: "mayor", label: "Alcalde" },
   { key: "cupid", label: "Cupido" },
   { key: "witch", label: "Bruja" },
+  { key: "littleRed", label: "Caperuza" },
 ];
 
 /** A one-line summary of what a preset deals at the current player count. */
@@ -390,14 +392,7 @@ function TableStep({
   // werewolf count for both the strict-minority check and the specials-fit check.
   const wolfCount = config.werewolves;
   const upper = maxWolves(count);
-  const specials =
-    wolfCount +
-    (config.seer ? 1 : 0) +
-    (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0) +
-    (config.mayor ? 1 : 0) +
-    (config.cupid ? 1 : 0) +
-    (config.witch ? 1 : 0);
+  const specials = countSpecials(config);
   const town = count - wolfCount;
   const configValid =
     config.werewolves >= 1 && wolfCount < town && specials <= count;
@@ -690,6 +685,11 @@ function RolePicker({
         label="La Bruja del Callejón"
         active={config.witch ?? false}
         onToggle={() => onChange({ ...config, witch: !config.witch })}
+      />
+      <RoleToggle
+        label="Caperuza del Callejón"
+        active={config.littleRed ?? false}
+        onToggle={() => onChange({ ...config, littleRed: !config.littleRed })}
       />
 
       {showComingSoon

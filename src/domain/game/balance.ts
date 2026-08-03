@@ -1,4 +1,4 @@
-import type { RoleConfig } from "./player";
+import { countSpecials, type RoleConfig } from "./player";
 import { roleWeight } from "./roles";
 
 /**
@@ -7,15 +7,7 @@ import { roleWeight } from "./roles";
  * seats not taken by a special role become villagers.
  */
 export function configBalance(config: RoleConfig, count: number): number {
-  const specials =
-    config.werewolves +
-    (config.seer ? 1 : 0) +
-    (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0) +
-    (config.mayor ? 1 : 0) +
-    (config.cupid ? 1 : 0) +
-    (config.witch ? 1 : 0);
-  const villagers = count - specials;
+  const villagers = count - countSpecials(config);
   return (
     config.werewolves * roleWeight("werewolf") +
     (config.seer ? roleWeight("seer") : 0) +
@@ -24,6 +16,7 @@ export function configBalance(config: RoleConfig, count: number): number {
     (config.mayor ? roleWeight("mayor") : 0) +
     (config.cupid ? roleWeight("cupid") : 0) +
     (config.witch ? roleWeight("witch") : 0) +
+    (config.littleRed ? roleWeight("littleRed") : 0) +
     villagers * roleWeight("villager")
   );
 }

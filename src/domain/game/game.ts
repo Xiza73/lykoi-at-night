@@ -227,14 +227,28 @@ export function resolveNight(
       : (game.players.find((player) => player.id === wolfTargetId) ?? null);
   const saved =
     guardian != null && effectiveWard !== null && effectiveWard === wolfTargetId;
+  // Caperucita (littleRed) cannot be taken by the wolves while a Cazador still
+  // breathes. "Still alive" is measured at the START of resolution — from the
+  // incoming `game.players`, before ANY of tonight's eliminations — so even if
+  // the pack's attack and something else fell the hunter this same night, her
+  // immunity that night still held. This guards ONLY against the wolves' kill
+  // (below); the poison, the lover bond and a day lynch reach her untouched.
+  const hunterAlive = game.players.some(
+    (player) => player.alive && player.role === "hunter",
+  );
+  const littleRedImmune =
+    victim !== null && victim.role === "littleRed" && hunterAlive;
   // All of La Bruja's effects require a LIVING witch; without one the params are
   // ignored and the potion flags carry over unchanged.
   const witchAlive =
     game.players.find((player) => player.alive && player.role === "witch") !=
     null;
-  // The wolves' victim would die unless the ward saved them. La Bruja's blind
-  // heal only bites (and is only spent) when there is such a death to prevent.
-  const victimWouldDie = victim !== null && victim.alive && !saved;
+  // The wolves' victim would die unless the ward saved them or Caperucita's
+  // immunity held. La Bruja's blind heal only bites (and is only spent) when
+  // there is such a death to prevent — so a night whose lone target was an
+  // immune Caperucita leaves the potion unspent, exactly like a warded victim.
+  const victimWouldDie =
+    victim !== null && victim.alive && !saved && !littleRedImmune;
   const healApplies =
     witchAlive && witch.heal && game.witchHeal && victimWouldDie;
   const witchHeal = healApplies ? false : game.witchHeal;

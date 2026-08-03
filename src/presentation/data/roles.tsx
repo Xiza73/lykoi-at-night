@@ -136,6 +136,40 @@ export const roles: Role[] = [
     ),
   },
   {
+    id: "caperuza",
+    name: "Caperuza del Callejón",
+    faction: "Vecindario",
+    description:
+      "Mientras el Cazador respire, los Lykoi no pueden llevársela en la noche. Duerme a salvo, sin nada que hacer.",
+    implemented: true,
+    art: (
+      <>
+        <path d="M12 3 q-5 1 -5 7 v6 q0 3 5 4 q5 -1 5 -4 v-6 q0 -6 -5 -7z" />
+        <path d="M8 8 q4 -2 8 0" opacity=".55" />
+        <path d="M9.5 12 h0 M14.5 12 h0" strokeWidth="2" strokeLinecap="round" />
+        <path d="M10 15.5 q2 1.5 4 0" opacity=".6" />
+      </>
+    ),
+  },
+  {
+    id: "alcalde",
+    name: "Alcalde del Callejón",
+    faction: "Vecindario",
+    description:
+      "Cuando el destierro del día queda empatado, su palabra pesa doble e inclina la balanza.",
+    implemented: true,
+    art: (
+      <>
+        <path d="M12 4 v15" />
+        <path d="M5 8 h14" />
+        <path d="M5 8 l-2.5 4 h5 z" />
+        <path d="M19 8 l-2.5 4 h5 z" />
+        <path d="M8.5 19 h7" opacity=".55" />
+        <path d="M12 4 l0 0" strokeWidth="2.4" strokeLinecap="round" />
+      </>
+    ),
+  },
+  {
     id: "domestico",
     name: "Gato Doméstico",
     faction: "Vecindario",
