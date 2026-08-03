@@ -30,3 +30,6 @@ Thumbs.db
 
 # Design source (Claude Design exports — local working assets)
 design/
+
+# Tooling cache (skill registry) — regenerated locally, not shared
+.atl/
