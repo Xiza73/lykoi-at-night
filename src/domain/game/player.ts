@@ -92,7 +92,11 @@ export function dealRoles(
     roles.push("villager");
   }
 
-  return shuffle(seats).map((seat, index) =>
-    createPlayer(seat.id, seat.name, roles[index]),
+  // Shuffle the ROLES, not the seats: players keep their entry order so the
+  // phone travels the table seat by seat (names = seating order), while roles
+  // stay unlinkable to any given seat.
+  const dealt = shuffle(roles);
+  return seats.map((seat, index) =>
+    createPlayer(seat.id, seat.name, dealt[index]),
   );
 }

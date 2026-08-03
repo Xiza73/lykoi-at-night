@@ -5,6 +5,7 @@ import {
   hunterRevenge,
   lynch,
   resolveNight,
+  resolveWolfVotes,
   type Game,
 } from "../domain/game/game";
 import type { RoleConfig, Seat } from "../domain/game/player";
@@ -13,7 +14,7 @@ import { createShuffle, type Shuffle } from "../domain/game/shuffle";
 import { PhoneHeader } from "./components/PhoneHeader";
 import { LobbyView } from "./views/LobbyView";
 import { RevealView } from "./views/RevealView";
-import { NightView, type NightStep } from "./views/NightView";
+import { NightView, type NightSubStep } from "./views/NightView";
 import { DayView } from "./views/DayView";
 import { EndView } from "./views/EndView";
 import { HunterView } from "./views/HunterView";
@@ -46,17 +47,26 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const [step, setStep] = useState<Step>("lobby");
   const [revealIndex, setRevealIndex] = useState(0);
   const [game, setGame] = useState<Game | null>(null);
-  // Night sub-flow state, owned by the container. The ward, victim and seer
-  // reading are collected by the UI and handed to resolveNight — the only
-  // death path at night.
-  const [nightStep, setNightStep] = useState<NightStep>("guardian-gate");
+  // Night sub-flow state, owned by the container. The phone passes to each
+  // LIVING player in SEAT ORDER; each acts by THEIR role. The ward and the
+  // pack's votes are collected here and handed to resolveWolfVotes +
+  // resolveNight — the only death path at night. No screen ever names a role
+  // at hand-off, so passing the phone never leaks who holds which role.
+  const [nightRound, setNightRound] = useState<1 | 2>(1);
+  const [seatIndex, setSeatIndex] = useState(0);
+  const [nightSubStep, setNightSubStep] = useState<NightSubStep>("gate");
   const [protectedId, setProtectedId] = useState<string | null>(null);
+  // Votes for the CURRENT round, keyed by the voting wolf's id.
+  const [wolfVotes, setWolfVotes] = useState<Record<string, string>>({});
+  // The action-turn selections for the seated player (reset between turns).
   const [wolfTargetId, setWolfTargetId] = useState<string | null>(null);
   const [seerTargetId, setSeerTargetId] = useState<string | null>(null);
   // Snapshot taken the moment resolveNight runs: the name of whoever the night
   // claimed, or null if the umbral held. Drives the dawn message even after the
   // phase has advanced to day.
   const [dawnVictimName, setDawnVictimName] = useState<string | null>(null);
+  // True when a double tie in the pack's vote spared the night (nobody chosen).
+  const [nightSpared, setNightSpared] = useState(false);
   // The day's suspect, marked by the town before the vote resolves.
   const [suspectId, setSuspectId] = useState<string | null>(null);
   // The player the fallen Cazador de Sombras picks to take down with them.
@@ -73,11 +83,15 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   }, [step, game]);
 
   const armNight = () => {
-    setNightStep("guardian-gate");
+    setNightRound(1);
+    setSeatIndex(0);
+    setNightSubStep("gate");
     setProtectedId(null);
+    setWolfVotes({});
     setWolfTargetId(null);
     setSeerTargetId(null);
     setDawnVictimName(null);
+    setNightSpared(false);
   };
 
   const handleDeal = (seats: readonly Seat[], roleConfig: RoleConfig) => {
@@ -100,18 +114,52 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setRevealIndex((prev) => prev + 1);
   };
 
-  const handleResolveNight = () => {
+  // The living players, in seat order — the phone travels down this list. The
+  // domain preserves seat order, so index i is the i-th living seat.
+  const livingSeats = game?.players.filter((player) => player.alive) ?? [];
+  const seated = livingSeats[seatIndex];
+
+  const handleOpenGate = () => {
+    // Hand-off accepted: reveal the seated player's private action.
+    setNightSubStep("action");
+  };
+
+  // Resolves a completed vote round: on a first-round tie run a second pass;
+  // on a second-round tie nobody dies. Otherwise the plurality victim falls.
+  const resolveRound = (votes: Record<string, string>, round: 1 | 2) => {
+    if (!game) {
+      return;
+    }
+    const { victim, tie } = resolveWolfVotes(Object.values(votes));
+    if (tie && round === 1) {
+      // The pack re-votes: fresh votes, everything else from round 1 stays.
+      setNightRound(2);
+      setSeatIndex(0);
+      setNightSubStep("gate");
+      setWolfVotes({});
+      setWolfTargetId(null);
+      setSeerTargetId(null);
+      return;
+    }
+    // No-tie (either round) → victim; round-2 tie → nobody dies (victim = null).
+    const spared = tie;
+    finishNight(victim, spared);
+  };
+
+  // Runs the single domain resolution and routes to hunter/dawn.
+  const finishNight = (victimId: string | null, spared: boolean) => {
     if (!game) {
       return;
     }
     // resolveNight is the ONLY night death path: it kills (or spares) the victim
     // and breaks to the next day — or ends the game. Randomness never enters.
-    const resolved = resolveNight(game, wolfTargetId, protectedId);
-    const victim = wolfTargetId
-      ? resolved.players.find((player) => player.id === wolfTargetId)
+    const resolved = resolveNight(game, victimId, protectedId);
+    const victim = victimId
+      ? resolved.players.find((player) => player.id === victimId)
       : undefined;
-    // The victim fell if they were the wolves' target and are now dead.
+    // The victim fell if they were the pack's target and are now dead.
     setDawnVictimName(victim && !victim.alive ? victim.name : null);
+    setNightSpared(spared);
     setGame(resolved);
     // If the Cazador fell at night, pause for the public revenge before dawn.
     if (resolved.pendingHunter !== null) {
@@ -120,7 +168,32 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       return;
     }
     setStep("night");
-    setNightStep("dawn");
+    setNightSubStep("dawn");
+  };
+
+  // The seated player finished their action: fold in any vote, then advance to
+  // the next living seat — or resolve the round once the pass is complete.
+  const handleConfirmAction = () => {
+    if (!game || !seated) {
+      return;
+    }
+    // A wolf's confirmed vote for this round; other roles cast no vote.
+    let votes = wolfVotes;
+    if (isWolf(seated.role) && wolfTargetId !== null) {
+      votes = { ...wolfVotes, [seated.id]: wolfTargetId };
+      setWolfVotes(votes);
+    }
+    // Clear the per-turn selections before the next player takes the phone.
+    setWolfTargetId(null);
+    setSeerTargetId(null);
+
+    const isLast = seatIndex + 1 >= livingSeats.length;
+    if (isLast) {
+      resolveRound(votes, nightRound);
+      return;
+    }
+    setSeatIndex(seatIndex + 1);
+    setNightSubStep("gate");
   };
 
   const handleDawnContinue = () => {
@@ -298,18 +371,20 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       return (
         <NightView
           game={game}
-          step={nightStep}
+          subStep={nightSubStep}
+          seated={seated}
+          round={nightRound}
           protectedId={protectedId}
-          wolfTargetId={wolfTargetId}
+          wolfVotes={wolfVotes}
           seerTargetId={seerTargetId}
+          wolfTargetId={wolfTargetId}
           victimName={dawnVictimName}
-          onOpenGate={setNightStep}
+          spared={nightSpared}
+          onOpenGate={handleOpenGate}
           onSelectProtected={setProtectedId}
-          onConfirmProtected={() => setNightStep("wolf-gate")}
-          onSelectWolfTarget={setWolfTargetId}
-          onConfirmWolfTarget={() => setNightStep("seer-gate")}
           onSelectSeerTarget={setSeerTargetId}
-          onConfirmSeer={handleResolveNight}
+          onSelectWolfTarget={setWolfTargetId}
+          onConfirmAction={handleConfirmAction}
           onDawnContinue={handleDawnContinue}
         />
       );

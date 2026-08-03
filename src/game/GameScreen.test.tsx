@@ -103,6 +103,11 @@ async function fillHunterLobbyAndDeal(
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
+/** Opens the current seat's gate ("Ya lo tengo") to reveal their action. */
+async function openGate(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+}
+
 describe("GameScreen", () => {
   it("deals the roster and shows the reveal step", async () => {
     const user = userEvent.setup();
@@ -123,33 +128,54 @@ describe("GameScreen", () => {
     await fillLobbyAndDeal(user);
     await walkReveal(user);
 
-    // The night opens on the Guardian's gate.
+    // The night opens on the FIRST seat's gate — named by the player, not a role.
     expect(
-      screen.getByRole("heading", { name: /el guardián del umbral/i }),
+      screen.getByRole("heading", { name: /le toca a ana/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/pásale el teléfono a ana/i),
     ).toBeInTheDocument();
   });
 
-  it("runs a full night: guardian passes, wolves take a villager, dawn reports the fall", async () => {
+  it("runs a full night in seat order: wolf votes, seer reads, others pass, dawn reports the fall", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
     await fillLobbyAndDeal(user);
     await walkReveal(user);
 
-    // Guardian gate -> pick: ward nobody.
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    // Seat 1 — Ana (the lone Lykoi): votes Dario, a villager.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos un lykoi/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+
+    // Seat 2 — Beto (the Vidente): reads Eva.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos la vidente/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+
+    // Seat 3 — Caro (the Guardián): wards nobody.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos el guardián del umbral/i }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
 
-    // Wolves gate -> pick Dario (a villager) and seal.
-    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
-    await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
-    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
-
-    // Seer gate -> look at Eva, then resolve the night.
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
-    await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
-    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    // Seats 4-6 — Dario, Eva, Fabi (villagers): no night action.
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      expect(
+        screen.getByText(/dormís tranquilo/i),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
 
     // Dawn: Dario did not survive the night.
     expect(
@@ -166,6 +192,114 @@ describe("GameScreen", () => {
     ).toBeInTheDocument();
   });
 
+  it("a Básico game shows no Vidente/Guardián screens — villagers just pass", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillTwoWolfLobbyAndDeal(user);
+
+    // Walk the reveal (five players) through to the first night.
+    const packNames = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
+    for (let i = 0; i < packNames.length; i += 1) {
+      await user.click(
+        screen.getByRole("button", { name: /voltear la carta/i }),
+      );
+      const passLabel =
+        i === packNames.length - 1 ? /ocultar y empezar/i : /ocultar y pasar/i;
+      await user.click(screen.getByRole("button", { name: passLabel }));
+    }
+
+    // Seat 1 — Ana (wolf): votes Caro, a villager.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos un lykoi/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /votar por caro/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+
+    // Seat 2 — Beto (wolf): also votes Caro. The tally shows Ana's prior vote.
+    await openGate(user);
+    expect(
+      screen.getByRole("heading", { name: /sos un lykoi/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/ana votó por caro/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /votar por caro/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+
+    // Seats 3-5 — Caro, Dario, Eva (villagers): NO seer/guardian screens at all.
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      expect(screen.getByText(/dormís tranquilo/i)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /sos la vidente/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /sos el guardián/i }),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Both wolves voted Caro: Caro fell at dawn.
+    expect(
+      screen.getByText(/caro no volvió al callejón/i),
+    ).toBeInTheDocument();
+  });
+
+  it("a tie makes the pack re-vote; a second tie spares the night", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen shuffle={identityShuffle} />);
+
+    await fillTwoWolfLobbyAndDeal(user);
+
+    const packNames = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
+    for (let i = 0; i < packNames.length; i += 1) {
+      await user.click(
+        screen.getByRole("button", { name: /voltear la carta/i }),
+      );
+      const passLabel =
+        i === packNames.length - 1 ? /ocultar y empezar/i : /ocultar y pasar/i;
+      await user.click(screen.getByRole("button", { name: passLabel }));
+    }
+
+    // Round 1 — the two wolves vote DIFFERENT villagers (a tie).
+    await openGate(user); // Ana
+    await user.click(screen.getByRole("button", { name: /votar por caro/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    // Villagers pass to finish round 1.
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
+
+    // Round 2 announced — the pack re-votes, again DIFFERENT villagers (a tie).
+    await openGate(user); // Ana re-votes fresh
+    expect(
+      screen.getByRole("heading", { name: /sos un lykoi/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /votar por caro/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user); // Beto re-votes fresh
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    // On the re-vote a non-wolf is told they do not vote — just pass.
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      expect(
+        screen.getByRole("heading", { name: /la manada volvió a dudar/i }),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+    }
+
+    // Double tie: nobody fell this night.
+    expect(screen.getByText(/amaneció sin bajas/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/la manada no se puso de acuerdo/i),
+    ).toBeInTheDocument();
+  });
+
   it("lynching the lone werewolf on the day ends the game with the town winning", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
@@ -173,16 +307,21 @@ describe("GameScreen", () => {
     await fillLobbyAndDeal(user);
     await walkReveal(user);
 
-    // Night: guardian passes, wolves take Dario, seer looks at Eva, resolve.
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
-    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
-    await user.click(screen.getByRole("button", { name: /^listo$/i }));
-    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
-    await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
-    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    // Night in seat order: Ana (wolf) votes Dario, Beto (seer) reads Eva,
+    // Caro (guardian) passes, the three villagers pass.
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user);
     await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
     await user.click(screen.getByRole("button", { name: /volver al callejón/i }));
 
     // Day: select Ana (the werewolf) and banish her. With one wolf, that ends it.
@@ -201,16 +340,21 @@ describe("GameScreen", () => {
     await fillHunterLobbyAndDeal(user);
     await walkReveal(user);
 
-    // Night: guardian passes, wolves take Dario (the Cazador), seer looks at Eva.
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
-    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
-    await user.click(screen.getByRole("button", { name: /^listo$/i }));
-    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
-    await user.click(screen.getByRole("button", { name: /elegir a dario/i }));
-    await user.click(screen.getByRole("button", { name: /sellar la presa/i }));
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
+    // Night in seat order: Ana (wolf) votes Dario (the Cazador), Beto (seer)
+    // reads Eva, Caro (guardian) passes, Dario/Eva/Fabi pass.
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /votar por dario/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar voto/i }));
+    await openGate(user);
     await user.click(screen.getByRole("button", { name: /mirar a eva/i }));
     await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    await openGate(user);
+    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
+    await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    for (let i = 0; i < 3; i += 1) {
+      await openGate(user);
+      await user.click(screen.getByRole("button", { name: /^listo$/i }));
+    }
 
     // The Cazador fell: the revenge step opens BEFORE dawn.
     expect(
@@ -261,21 +405,16 @@ describe("GameScreen", () => {
       await user.click(screen.getByRole("button", { name: passLabel }));
     }
 
-    // Guardian gate is still shown (turns never leak who is alive): pass through.
-    await user.click(screen.getByRole("button", { name: /ya lo tengo/i }));
-    await user.click(screen.getByRole("button", { name: /nadie \/ pasar/i }));
-    await user.click(screen.getByRole("button", { name: /^listo$/i }));
-
-    // Wolves' step: only living townsfolk are selectable, never a fellow wolf.
-    await user.click(screen.getByRole("button", { name: /somos los lykoi/i }));
+    // Seat 1 — Ana (wolf): only living townsfolk are votable, never a fellow wolf.
+    await openGate(user);
     expect(
-      screen.getByRole("button", { name: /elegir a caro/i }),
+      screen.getByRole("button", { name: /votar por caro/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /elegir a ana/i }),
+      screen.queryByRole("button", { name: /votar por ana/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /elegir a beto/i }),
+      screen.queryByRole("button", { name: /votar por beto/i }),
     ).not.toBeInTheDocument();
   });
 });
