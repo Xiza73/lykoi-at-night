@@ -7,7 +7,6 @@ import {
 } from "../domain/game/player";
 import type { Shuffle } from "../domain/game/shuffle";
 import {
-  COMING_SOON_ROLES,
   isPresetAvailable,
   PRESETS,
   presetConfig,
@@ -82,43 +81,21 @@ describe("presetConfig", () => {
   });
 
   describe("Avanzado scales with the player count", () => {
-    it("opens at five with the Cazador but no wolf-aligned specials", () => {
+    it("opens at five with the Seer, Guardian and Cazador", () => {
       const config = presetConfig("advanced", 5);
+      expect(config.seer).toBe(true);
+      expect(config.guardian).toBe(true);
       expect(config.hunter).toBe(true);
-      expect(config.infector).toBe(false);
-      expect(config.trickster).toBe(false);
     });
 
-    it("adds the Madre Camada from seven players", () => {
-      expect(presetConfig("advanced", 6).infector).toBe(false);
-      expect(presetConfig("advanced", 7).infector).toBe(true);
+    it("scales the werewolf count up with the player count", () => {
+      expect(presetConfig("advanced", 5).werewolves).toBe(
+        recommendedWolves(5),
+      );
+      expect(presetConfig("advanced", MAX_PLAYERS).werewolves).toBe(
+        recommendedWolves(MAX_PLAYERS),
+      );
     });
-
-    it("adds the Ronroneo Falso from nine players", () => {
-      expect(presetConfig("advanced", 8).trickster).toBe(false);
-      expect(presetConfig("advanced", 9).trickster).toBe(true);
-    });
-
-    it("includes strictly more special roles at higher counts", () => {
-      const specialsAt = (count: number) => {
-        const config = presetConfig("advanced", count);
-        const wolfSpecials =
-          (config.infector ? 1 : 0) + (config.trickster ? 1 : 0);
-        const townSpecials =
-          (config.seer ? 1 : 0) +
-          (config.guardian ? 1 : 0) +
-          (config.hunter ? 1 : 0) +
-          (config.insomniac ? 1 : 0) +
-          (config.gossip ? 1 : 0);
-        return wolfSpecials + townSpecials;
-      };
-      expect(specialsAt(5)).toBeLessThan(specialsAt(9));
-      expect(specialsAt(6)).toBeGreaterThanOrEqual(specialsAt(5));
-    });
-  });
-
-  it("has no coming-soon roles left: all nine are implemented", () => {
-    expect(COMING_SOON_ROLES).toEqual([]);
   });
 });
 

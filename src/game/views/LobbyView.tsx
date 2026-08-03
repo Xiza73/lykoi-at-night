@@ -217,10 +217,6 @@ const SPECIAL_LABELS: { key: keyof RoleConfig; label: string }[] = [
   { key: "seer", label: "Vidente" },
   { key: "guardian", label: "Guardián" },
   { key: "hunter", label: "Cazador" },
-  { key: "insomniac", label: "Insomne" },
-  { key: "infector", label: "Madre Camada" },
-  { key: "gossip", label: "Chismosa" },
-  { key: "trickster", label: "Ronroneo Falso" },
 ];
 
 /** A one-line summary of what a preset deals at the current player count. */
@@ -382,22 +378,15 @@ function TableStep({
   onEditCount: () => void;
   onDeal: () => void;
 }) {
-  // The Madre Camada and the Ronroneo Falso are wolf-aligned, so they count
-  // toward the pack for both the strict-minority check and the specials-fit check
-  // (mirrors the domain).
-  const wolfSpecials = (config.infector ? 1 : 0) + (config.trickster ? 1 : 0);
-  const wolfCount = config.werewolves + wolfSpecials;
-  // The werewolves stepper bound leaves room for the wolf-aligned specials when
-  // they are in play, so the pack (werewolves + infector + trickster) never
-  // reaches the strict-minority ceiling maxWolves enforces.
-  const upper = Math.max(1, maxWolves(count) - wolfSpecials);
+  // Only the werewolves are wolf-aligned now, so the pack is exactly the
+  // werewolf count for both the strict-minority check and the specials-fit check.
+  const wolfCount = config.werewolves;
+  const upper = maxWolves(count);
   const specials =
     wolfCount +
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0) +
-    (config.insomniac ? 1 : 0) +
-    (config.gossip ? 1 : 0);
+    (config.hunter ? 1 : 0);
   const town = count - wolfCount;
   const configValid =
     config.werewolves >= 1 && wolfCount < town && specials <= count;
@@ -571,26 +560,6 @@ function RolePicker({
         label="Cazador de Sombras"
         active={config.hunter ?? false}
         onToggle={() => onChange({ ...config, hunter: !config.hunter })}
-      />
-      <RoleToggle
-        label="Madre Camada"
-        active={config.infector ?? false}
-        onToggle={() => onChange({ ...config, infector: !config.infector })}
-      />
-      <RoleToggle
-        label="Ronroneo Falso"
-        active={config.trickster ?? false}
-        onToggle={() => onChange({ ...config, trickster: !config.trickster })}
-      />
-      <RoleToggle
-        label="El Insomne"
-        active={config.insomniac ?? false}
-        onToggle={() => onChange({ ...config, insomniac: !config.insomniac })}
-      />
-      <RoleToggle
-        label="La Chismosa"
-        active={config.gossip ?? false}
-        onToggle={() => onChange({ ...config, gossip: !config.gossip })}
       />
 
       {showComingSoon

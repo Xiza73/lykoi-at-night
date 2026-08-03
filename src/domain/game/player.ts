@@ -27,10 +27,6 @@ export interface RoleConfig {
   readonly seer: boolean;
   readonly guardian: boolean;
   readonly hunter?: boolean;
-  readonly infector?: boolean;
-  readonly trickster?: boolean;
-  readonly insomniac?: boolean;
-  readonly gossip?: boolean;
 }
 
 /** Creates a living player with the given role. */
@@ -65,15 +61,12 @@ export function dealRoles(
   if (config.werewolves < 1) {
     throw new RangeError("A game needs at least one werewolf");
   }
-  const wolfCount =
-    config.werewolves + (config.infector ? 1 : 0) + (config.trickster ? 1 : 0);
+  const wolfCount = config.werewolves;
   const specials =
     wolfCount +
     (config.seer ? 1 : 0) +
     (config.guardian ? 1 : 0) +
-    (config.hunter ? 1 : 0) +
-    (config.insomniac ? 1 : 0) +
-    (config.gossip ? 1 : 0);
+    (config.hunter ? 1 : 0);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
   }
@@ -86,12 +79,6 @@ export function dealRoles(
   for (let i = 0; i < config.werewolves; i += 1) {
     roles.push("werewolf");
   }
-  if (config.infector) {
-    roles.push("infector");
-  }
-  if (config.trickster) {
-    roles.push("trickster");
-  }
   if (config.seer) {
     roles.push("seer");
   }
@@ -100,12 +87,6 @@ export function dealRoles(
   }
   if (config.hunter) {
     roles.push("hunter");
-  }
-  if (config.insomniac) {
-    roles.push("insomniac");
-  }
-  if (config.gossip) {
-    roles.push("gossip");
   }
   while (roles.length < seats.length) {
     roles.push("villager");

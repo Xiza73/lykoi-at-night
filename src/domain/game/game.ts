@@ -8,7 +8,7 @@ import {
   type RoleConfig,
   type Seat,
 } from "./player";
-import { isWolf, seerReadingOf, type Alignment, type Role } from "./roles";
+import { alignmentOf, isWolf, type Alignment } from "./roles";
 import type { Shuffle } from "./shuffle";
 
 export type GameStatus = "in_progress" | "ended";
@@ -24,7 +24,6 @@ export interface Game {
   readonly status: GameStatus;
   readonly winner: Outcome | null;
   readonly pendingHunter: PlayerId | null;
-  readonly infectionUsed: boolean;
 }
 
 /** Creates a new game: deals roles and opens on the first night. */
@@ -41,7 +40,6 @@ export function createGame(
     status: "in_progress",
     winner: null,
     pendingHunter: null,
-    infectionUsed: false,
   };
 }
 
@@ -53,11 +51,6 @@ export function livingWolves(game: Game): readonly Player[] {
 /** Living townsfolk (everyone who is not a werewolf). */
 export function livingTown(game: Game): readonly Player[] {
   return game.players.filter((player) => player.alive && !isWolf(player.role));
-}
-
-/** The footsteps the Insomne hears at dawn: how many Lykoi still prowl. */
-export function nightFootsteps(game: Game): number {
-  return livingWolves(game).length;
 }
 
 /**
@@ -99,16 +92,10 @@ export function advancePhase(game: Game): Game {
   return { ...game, phase, round };
 }
 
-/** The seer's reading of a player: the trickster is disguised (null if unknown id). */
+/** The seer's reading of a player: their alignment (null if unknown id). */
 export function investigate(game: Game, targetId: PlayerId): Alignment | null {
   const target = game.players.find((player) => player.id === targetId);
-  return target ? seerReadingOf(target.role) : null;
-}
-
-/** La Chismosa's peek: the true role of a cat (the UI targets the fallen). */
-export function peekRole(game: Game, targetId: PlayerId): Role | null {
-  const target = game.players.find((player) => player.id === targetId);
-  return target ? target.role : null;
+  return target ? alignmentOf(target.role) : null;
 }
 
 /**
@@ -120,49 +107,27 @@ export function resolveNight(
   game: Game,
   wolfTargetId: PlayerId | null,
   protectedId: PlayerId | null,
-  infectTargetId: PlayerId | null = null,
 ): Game {
   if (game.phase !== "night" || game.status === "ended") {
     return game;
   }
-
-  // 1. Infection (once per game): a living infector turns one townsperson.
-  let players = game.players;
-  let infectionUsed = game.infectionUsed;
-  const infectorAlive = players.some((p) => p.alive && p.role === "infector");
-  if (infectTargetId !== null && !infectionUsed && infectorAlive) {
-    const target = players.find((p) => p.id === infectTargetId);
-    if (target && target.alive && !isWolf(target.role)) {
-      players = players.map((p) =>
-        p.id === target.id ? { ...p, role: "werewolf" as const } : p,
-      );
-      infectionUsed = true;
-    }
-  }
-
-  // 2. The wolves' kill, unless a living guardian warded the victim.
-  const guardianAlive = players.some(
+  const guardianAlive = game.players.some(
     (player) => player.alive && player.role === "guardian",
   );
   const victim =
     wolfTargetId === null
       ? null
-      : (players.find((player) => player.id === wolfTargetId) ?? null);
+      : (game.players.find((player) => player.id === wolfTargetId) ?? null);
   const saved =
     guardianAlive && protectedId !== null && protectedId === wolfTargetId;
   const dies = victim !== null && victim.alive && !saved;
-  const afterKill = dies
-    ? players.map((player) =>
-        player.id === victim.id ? eliminate(player) : player,
-      )
-    : players;
-
-  const base: Game = { ...game, players: afterKill, infectionUsed };
-
+  const players = dies
+    ? game.players.map((p) => (p.id === victim.id ? eliminate(p) : p))
+    : game.players;
   if (dies && victim.role === "hunter") {
-    return { ...base, pendingHunter: victim.id };
+    return { ...game, players, pendingHunter: victim.id };
   }
-  const resolved = resolve(base);
+  const resolved = resolve({ ...game, players });
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
 }
 
@@ -212,4 +177,38 @@ export function hunterRevenge(game: Game, targetId: PlayerId | null): Game {
   const cleared: Game = { ...game, players, pendingHunter: null };
   const resolved = resolve(cleared);
   return resolved.status === "ended" ? resolved : advancePhase(resolved);
+}
+
+/**
+ * Resolves the pack's votes into a single victim. Each entry is one wolf's
+ * chosen target (or null to abstain). Returns the plurality target; if the top
+ * is tied between two or more targets, returns { victim: null, tie: true } so
+ * the caller can run a re-vote (and, on a second tie, spare the night). No votes
+ * at all is not a tie — nobody was chosen.
+ */
+export function resolveWolfVotes(
+  votes: readonly (PlayerId | null)[],
+): { victim: PlayerId | null; tie: boolean } {
+  const tally = new Map<PlayerId, number>();
+  for (const vote of votes) {
+    if (vote !== null) {
+      tally.set(vote, (tally.get(vote) ?? 0) + 1);
+    }
+  }
+  if (tally.size === 0) {
+    return { victim: null, tie: false };
+  }
+  let top = 0;
+  let leaders: PlayerId[] = [];
+  for (const [id, count] of tally) {
+    if (count > top) {
+      top = count;
+      leaders = [id];
+    } else if (count === top) {
+      leaders.push(id);
+    }
+  }
+  return leaders.length === 1
+    ? { victim: leaders[0], tie: false }
+    : { victim: null, tie: true };
 }

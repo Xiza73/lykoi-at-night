@@ -38,42 +38,28 @@ export function isPresetAvailable(preset: PresetId, count: number): boolean {
 }
 
 /**
- * The Avanzado role ladder: each role joins the hand once the player count
- * reaches its `min`. The two wolf-aligned specials (Madre Camada, Ronroneo
- * Falso) are marked `wolf` so they are counted into the pack, keeping the wolves
- * a strict minority instead of stacking on top of `recommendedWolves`.
+ * The Avanzado role ladder: each town special joins the hand once the player
+ * count reaches its `min`. The werewolf count scales with `recommendedWolves`.
  */
 const AVANZADO_LADDER: readonly {
   role: keyof RoleConfig;
   min: number;
-  wolf?: boolean;
 }[] = [
   { role: "seer", min: 5 },
   { role: "guardian", min: 5 },
   { role: "hunter", min: 5 },
-  { role: "insomniac", min: 6 },
-  { role: "infector", min: 7, wolf: true },
-  { role: "gossip", min: 8 },
-  { role: "trickster", min: 9, wolf: true },
 ];
 
 /** Builds the Avanzado hand for `count`, scaling roles in via the ladder. */
 function advancedConfig(count: number): RoleConfig {
   const included = AVANZADO_LADDER.filter((r) => count >= r.min);
-  const wolfSpecials = included.filter((r) => r.wolf).length;
-  // The wolf-aligned specials are counted into the pack, so back the plain
-  // werewolves down to keep total wolves ≈ recommendedWolves (never below 1).
-  const werewolves = Math.max(1, recommendedWolves(count) - wolfSpecials);
+  const werewolves = Math.max(1, recommendedWolves(count));
   const has = (role: keyof RoleConfig) => included.some((r) => r.role === role);
   return {
     werewolves,
     seer: has("seer"),
     guardian: has("guardian"),
     hunter: has("hunter"),
-    insomniac: has("insomniac"),
-    infector: has("infector"),
-    gossip: has("gossip"),
-    trickster: has("trickster"),
   };
 }
 

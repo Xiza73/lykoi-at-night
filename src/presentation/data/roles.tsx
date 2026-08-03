@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 /**
- * The nine roles of "Lykoi at Night" — a loose Werewolf adaptation with a
+ * The roles of "Lykoi at Night" — a loose Werewolf adaptation with a
  * gothic-cat voice.
  *
- * All nine are now wired into the playable engine, so none are marked
- * "Próximamente" in the gallery any more.
+ * All are wired into the playable engine, so none are marked "Próximamente" in
+ * the gallery any more.
  *
  * Each role carries its hand-drawn SVG art (paths only, wrapped by <RoleCard>).
  */
@@ -55,38 +55,6 @@ export const roles: Role[] = [
     ),
   },
   {
-    id: "madre-camada",
-    name: "Madre Camada",
-    faction: "Maldito",
-    description:
-      "Una vez por partida, convierte a un inocente en uno de los suyos. Él se entera al despertar. Ella, al ver su cara.",
-    implemented: true,
-    art: (
-      <>
-        <path d="M3 17 q9 -9 18 0" />
-        <circle cx="7" cy="19" r="2.2" />
-        <circle cx="12" cy="19.6" r="2.2" />
-        <circle cx="17" cy="19" r="2.2" />
-        <path d="M12 8 v-3 M9 9 l-2 -2 M15 9 l2 -2" opacity=".55" />
-      </>
-    ),
-  },
-  {
-    id: "ronroneo-falso",
-    name: "Ronroneo Falso",
-    faction: "Maldito",
-    description:
-      "Un Lykoi que, ante la Vidente, aparece limpio. Ha practicado ese ronroneo frente al espejo durante años.",
-    implemented: true,
-    art: (
-      <>
-        <path d="M4 7 h16 v6 q0 6 -8 8 q-8 -2 -8 -8z" />
-        <path d="M7.5 11 q1.8 -2.2 3.6 0 q-1.8 2.2 -3.6 0z M12.9 11 q1.8 -2.2 3.6 0 q-1.8 2.2 -3.6 0z" />
-        <path d="M9 15.5 q3 2 6 0" opacity=".6" />
-      </>
-    ),
-  },
-  {
     id: "vidente",
     name: "Vidente del Alféizar",
     faction: "Vecindario",
@@ -132,40 +100,6 @@ export const roles: Role[] = [
           strokeLinecap="round"
         />
         <path d="M3 19 q9 3 18 -1" opacity=".45" />
-      </>
-    ),
-  },
-  {
-    id: "insomne",
-    name: "El Insomne",
-    faction: "Vecindario",
-    description:
-      "No duerme: oye cuántos pasos hubo esa noche, nunca de quién.",
-    implemented: true,
-    art: (
-      <>
-        <path d="M9 21 h6 v-9 h-6z" />
-        <path d="M12 12 q-3 -3 0 -6 q3 3 0 6z" stroke="#d9a44c" />
-        <path d="M7 21 h10" />
-        <path d="M12 3 v1.5" opacity=".5" />
-      </>
-    ),
-  },
-  {
-    id: "chismosa",
-    name: "La Chismosa",
-    faction: "Vecindario",
-    description:
-      "Puede espiar el rol de un gato que ya no está. Y contarlo. O mentir sobre ello.",
-    implemented: true,
-    art: (
-      <>
-        <circle cx="12" cy="13" r="7" />
-        <path
-          d="M6 10 q6 5 12 1 M7 17 q5 -6 10 -3 M9 19.5 q1 -8 6 -9"
-          opacity=".7"
-        />
-        <path d="M18 7 l4 -4" strokeLinecap="round" />
       </>
     ),
   },

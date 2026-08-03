@@ -13,22 +13,13 @@ import { createShuffle, type Shuffle } from "../domain/game/shuffle";
 import { PhoneHeader } from "./components/PhoneHeader";
 import { LobbyView } from "./views/LobbyView";
 import { RevealView } from "./views/RevealView";
-import { NightView, TurnedView, type NightStep } from "./views/NightView";
+import { NightView, type NightStep } from "./views/NightView";
 import { DayView } from "./views/DayView";
 import { EndView } from "./views/EndView";
 import { HunterView } from "./views/HunterView";
-import { InsomniacView } from "./views/InsomniacView";
 
 /** The finite set of screens the pass-and-play flow moves through. */
-type Step =
-  | "lobby"
-  | "reveal"
-  | "night"
-  | "turned"
-  | "insomniac"
-  | "day"
-  | "hunter"
-  | "end";
+type Step = "lobby" | "reveal" | "night" | "day" | "hunter" | "end";
 
 interface GameScreenProps {
   /**
@@ -61,14 +52,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
   const [nightStep, setNightStep] = useState<NightStep>("guardian-gate");
   const [protectedId, setProtectedId] = useState<string | null>(null);
   const [wolfTargetId, setWolfTargetId] = useState<string | null>(null);
-  // The Madre Camada's chosen townsperson to convert, or null for "pass".
-  const [infectTargetId, setInfectTargetId] = useState<string | null>(null);
   const [seerTargetId, setSeerTargetId] = useState<string | null>(null);
-  // The dead cat La Chismosa peeked this night, or null. A live info read only.
-  const [gossipTargetId, setGossipTargetId] = useState<string | null>(null);
-  // The freshly-turned player's name, shown on the private "you were turned" gate
-  // before dawn. Null unless an infection actually landed this night.
-  const [turnedName, setTurnedName] = useState<string | null>(null);
   // Snapshot taken the moment resolveNight runs: the name of whoever the night
   // claimed, or null if the umbral held. Drives the dawn message even after the
   // phase has advanced to day.
@@ -92,11 +76,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     setNightStep("guardian-gate");
     setProtectedId(null);
     setWolfTargetId(null);
-    setInfectTargetId(null);
     setSeerTargetId(null);
-    setGossipTargetId(null);
     setDawnVictimName(null);
-    setTurnedName(null);
   };
 
   const handleDeal = (seats: readonly Seat[], roleConfig: RoleConfig) => {
@@ -125,68 +106,19 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     }
     // resolveNight is the ONLY night death path: it kills (or spares) the victim
     // and breaks to the next day — or ends the game. Randomness never enters.
-    const resolved = resolveNight(game, wolfTargetId, protectedId, infectTargetId);
+    const resolved = resolveNight(game, wolfTargetId, protectedId);
     const victim = wolfTargetId
       ? resolved.players.find((player) => player.id === wolfTargetId)
       : undefined;
     // The victim fell if they were the wolves' target and are now dead.
     setDawnVictimName(victim && !victim.alive ? victim.name : null);
-    // Diff the pre/post snapshots for a player the Madre Camada turned this night:
-    // one whose role flipped to "werewolf" (a townsperson before, wolf after).
-    const before = game.players;
-    const turned = resolved.players.find((player) => {
-      const prior = before.find((p) => p.id === player.id);
-      return prior?.role !== "werewolf" && player.role === "werewolf";
-    });
-    const turnedThisNight = turned ? turned.name : null;
-    setTurnedName(turnedThisNight);
     setGame(resolved);
-    // When several things land the same night, chain the gates so none is
-    // swallowed: the freshly-turned cat learns their fate first, THEN the fallen
-    // Cazador's revenge (see handleTurnedContinue), THEN dawn.
-    if (turnedThisNight !== null) {
-      setStep("turned");
-      return;
-    }
-    // Otherwise, if the Cazador fell at night, pause for the public revenge.
+    // If the Cazador fell at night, pause for the public revenge before dawn.
     if (resolved.pendingHunter !== null) {
       setHunterTargetId(null);
       setStep("hunter");
       return;
     }
-    proceedToDawn(resolved);
-  };
-
-  const handleTurnedContinue = () => {
-    // Dismiss the private turn notice. If the Cazador also fell this same night,
-    // his public revenge follows before dawn; otherwise fall through to dawn.
-    if (!game) {
-      return;
-    }
-    if (game.pendingHunter !== null) {
-      setHunterTargetId(null);
-      setStep("hunter");
-      return;
-    }
-    proceedToDawn(game);
-  };
-
-  /**
-   * Routes the resolved night to the dawn announcement, gating El Insomne's
-   * private "footsteps" reading in front of it whenever the role is in play.
-   * The insomniac step is always shown while the role exists (even if dead) so
-   * nothing leaks — matching how the night turns are gated by role-in-game.
-   */
-  const proceedToDawn = (resolved: Game) => {
-    if (resolved.players.some((p) => p.role === "insomniac")) {
-      setStep("insomniac");
-      return;
-    }
-    setStep("night");
-    setNightStep("dawn");
-  };
-
-  const handleInsomniacContinue = () => {
     setStep("night");
     setNightStep("dawn");
   };
@@ -245,12 +177,7 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       setStep("night");
       return;
     }
-    // Dawn broke (the hunter fell at night): gate El Insomne's private reading
-    // before the day board, whenever the role is in play.
-    if (next.players.some((p) => p.role === "insomniac")) {
-      setStep("insomniac");
-      return;
-    }
+    // Dawn broke (the hunter fell at night): straight to the day board.
     setSuspectId(null);
     setStep("day");
   };
@@ -280,14 +207,9 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     armNight();
   };
 
-  // The header phase chip only shows during active play (night/day). The private
-  // "you were turned" gate still happens under the cover of night.
+  // The header phase chip only shows during active play (night/day).
   const phase =
-    step === "night" || step === "turned" || step === "insomniac"
-      ? "night"
-      : step === "day"
-        ? "day"
-        : undefined;
+    step === "night" ? "night" : step === "day" ? "day" : undefined;
 
   return (
     <div
@@ -339,8 +261,8 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     if (step === "reveal") {
       const player = game.players[revealIndex];
       // The pack knows its own: surface the OTHER wolves' names so the reveal
-      // card can show them. Uses isWolf so the Madre Camada and the werewolves
-      // see each other. Empty (or ignored) for town players.
+      // card can show them. Uses isWolf so the pack sees each other. Empty (or
+      // ignored) for town players.
       const teammates = isWolf(player.role)
         ? game.players
             .filter((p) => isWolf(p.role) && p.id !== player.id)
@@ -361,16 +283,6 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
       return <EndView winner={game.winner} onReset={handleReset} />;
     }
 
-    if (step === "turned" && turnedName !== null) {
-      return <TurnedView name={turnedName} onContinue={handleTurnedContinue} />;
-    }
-
-    if (step === "insomniac") {
-      // Gated by the role being in the game — always shown while El Insomne is in
-      // play (even dead), so the private footsteps reading never leaks who lives.
-      return <InsomniacView game={game} onContinue={handleInsomniacContinue} />;
-    }
-
     if (step === "hunter") {
       return (
         <HunterView
@@ -383,42 +295,21 @@ export function GameScreen({ shuffle = defaultShuffle }: GameScreenProps) {
     }
 
     if (step === "night") {
-      // The Madre Camada's turn is gated by her role being in the game — always
-      // shown while she's in play (even dead / power spent); the domain ignores
-      // an invalid or repeat infection.
-      const hasInfector = game.players.some((p) => p.role === "infector");
-      // La Chismosa's turn is gated by her role being in the game — always shown
-      // while she's in play (even dead) so the private peek never leaks who lives.
-      const hasGossip = game.players.some((p) => p.role === "gossip");
       return (
         <NightView
           game={game}
           step={nightStep}
           protectedId={protectedId}
           wolfTargetId={wolfTargetId}
-          infectTargetId={infectTargetId}
           seerTargetId={seerTargetId}
-          gossipTargetId={gossipTargetId}
           victimName={dawnVictimName}
           onOpenGate={setNightStep}
           onSelectProtected={setProtectedId}
           onConfirmProtected={() => setNightStep("wolf-gate")}
           onSelectWolfTarget={setWolfTargetId}
-          onConfirmWolfTarget={() =>
-            // The Madre Camada's turn is shown only when her role is in the game;
-            // otherwise the night skips straight to the seer.
-            setNightStep(hasInfector ? "infector-gate" : "seer-gate")
-          }
-          onSelectInfectTarget={setInfectTargetId}
-          onConfirmInfectTarget={() => setNightStep("seer-gate")}
+          onConfirmWolfTarget={() => setNightStep("seer-gate")}
           onSelectSeerTarget={setSeerTargetId}
-          onConfirmSeer={() =>
-            // La Chismosa's turn follows the Seer only when her role is in play;
-            // otherwise the night resolves straight away.
-            hasGossip ? setNightStep("gossip-gate") : handleResolveNight()
-          }
-          onSelectGossipTarget={setGossipTargetId}
-          onResolve={handleResolveNight}
+          onConfirmSeer={handleResolveNight}
           onDawnContinue={handleDawnContinue}
         />
       );

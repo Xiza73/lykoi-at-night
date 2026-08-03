@@ -3,9 +3,9 @@ import { RoleCard } from "../molecules/RoleCard";
 import { roles } from "../data/roles";
 
 /**
- * The #cartas section: the nine-role gallery. Centered and mobile-first — a
- * single column on narrow screens, a multi-column grid on desktop. Roles the
- * engine does not support yet are dimmed and badged "Próximamente".
+ * The #cartas section: the role gallery. Centered and mobile-first — a single
+ * column on narrow screens, a multi-column grid on desktop. Roles the engine
+ * does not support yet are dimmed and badged "Próximamente".
  */
 export function RolesSection() {
   return (
@@ -45,9 +45,9 @@ export function RolesSection() {
               color: "var(--lyk-ink-strong)",
             }}
           >
-            Nueve maneras
+            Los roles
             <br />
-            de no ser tú mismo
+            del callejón
           </h2>
         </div>
 

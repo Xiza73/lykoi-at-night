@@ -18,5 +18,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // archive/ holds snapshots of removed roles; they are not compiled or run.
+    exclude: ["**/node_modules/**", "**/dist/**", "archive/**"],
   },
 });

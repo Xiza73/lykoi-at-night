@@ -27,20 +27,6 @@ export function roleInfo(role: Role): RoleInfo {
         tone: "var(--lyk-blood-bright)",
         desc: "Cada noche, con los otros Lykoi, eligen a quién se lleva la oscuridad.",
       };
-    case "infector":
-      return {
-        name: "Madre Camada",
-        faction: "Maldito",
-        tone: "var(--lyk-blood-bright)",
-        desc: "Una vez por partida, convierte a un inocente en uno de los suyos.",
-      };
-    case "trickster":
-      return {
-        name: "Ronroneo Falso",
-        faction: "Maldito",
-        tone: "var(--lyk-blood-bright)",
-        desc: "Un Lykoi que, ante la Vidente, aparece limpio.",
-      };
     case "seer":
       return {
         name: "Vidente del Alféizar",
@@ -61,20 +47,6 @@ export function roleInfo(role: Role): RoleInfo {
         faction: "Vecindario",
         tone: "var(--lyk-gold)",
         desc: "Si cae, se lleva a otro gato con él. Rencoroso incluso muerto.",
-      };
-    case "insomniac":
-      return {
-        name: "El Insomne",
-        faction: "Vecindario",
-        tone: "var(--lyk-gold)",
-        desc: "No duerme: oye cuántos Lykoi rondaron esa noche, nunca quiénes.",
-      };
-    case "gossip":
-      return {
-        name: "La Chismosa",
-        faction: "Vecindario",
-        tone: "var(--lyk-gold)",
-        desc: "Espía el rol de un gato caído. Y lo cuenta. O miente.",
       };
     case "villager":
       return {
