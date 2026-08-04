@@ -5,12 +5,14 @@ import {
   MIN_PLAYERS,
   type Seat,
 } from "../domain/game/player";
+import { configBalance } from "../domain/game/balance";
 import type { Shuffle } from "../domain/game/shuffle";
 import {
   isPresetAvailable,
   PRESETS,
   presetConfig,
   recommendedWolves,
+  type PresetId,
 } from "./presets";
 
 /** Identity shuffle: leaves seat order untouched, so deals are deterministic. */
@@ -24,6 +26,20 @@ function seats(count: number): Seat[] {
   }));
 }
 
+/** The three curated skill levels, each covering the full 4..24 range. */
+const LEVELS = ["beginner", "intermediate", "advanced"] as const;
+
+/**
+ * The balance band each level must land in, given the player count. Avanzado is
+ * allowed a slightly wider window at the deck's extremes (counts >= 21), where
+ * the six-Lykoi / twelve-villager caps force a harder tilt.
+ */
+function bandFor(level: (typeof LEVELS)[number], count: number): [number, number] {
+  if (level === "beginner") return [1, 3];
+  if (level === "intermediate") return [-1, 1];
+  return count >= 21 ? [-5, -1] : [-3, -1];
+}
+
 describe("recommendedWolves", () => {
   it("scales roughly one wolf per four cats", () => {
     expect(recommendedWolves(4)).toBe(1);
@@ -33,6 +49,10 @@ describe("recommendedWolves", () => {
 
   it("never drops below one wolf", () => {
     expect(recommendedWolves(MIN_PLAYERS)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("caps at the deck's six Lykoi", () => {
+    expect(recommendedWolves(MAX_PLAYERS)).toBe(6);
   });
 
   it("never reaches parity with the town", () => {
@@ -46,72 +66,56 @@ describe("recommendedWolves", () => {
 });
 
 describe("isPresetAvailable", () => {
-  it("offers the base presets from the minimum player count", () => {
-    for (const preset of ["basic", "classic", "custom"] as const) {
-      expect(isPresetAvailable(preset, MIN_PLAYERS)).toBe(true);
-    }
-  });
-
-  it("gates Avanzado below five players", () => {
-    expect(isPresetAvailable("advanced", 4)).toBe(false);
-    expect(isPresetAvailable("advanced", 5)).toBe(true);
-    expect(isPresetAvailable("advanced", MAX_PLAYERS)).toBe(true);
-  });
-});
-
-describe("presetConfig", () => {
-  it("Básico plays only Lykoi and honest cats", () => {
-    expect(presetConfig("basic", 6)).toEqual({
-      werewolves: recommendedWolves(6),
-      seer: false,
-      guardian: false,
-    });
-  });
-
-  it("Clásico adds the Seer and Guardian", () => {
-    expect(presetConfig("classic", 6)).toEqual({
-      werewolves: recommendedWolves(6),
-      seer: true,
-      guardian: true,
-    });
-  });
-
-  it("Personalizado starts from the Clásico hand", () => {
-    expect(presetConfig("custom", 6)).toEqual(presetConfig("classic", 6));
-  });
-
-  describe("Avanzado scales with the player count", () => {
-    it("opens at five with the Seer, Guardian and Cazador", () => {
-      const config = presetConfig("advanced", 5);
-      expect(config.seer).toBe(true);
-      expect(config.guardian).toBe(true);
-      expect(config.hunter).toBe(true);
-    });
-
-    it("scales the werewolf count up with the player count", () => {
-      expect(presetConfig("advanced", 5).werewolves).toBe(
-        recommendedWolves(5),
-      );
-      expect(presetConfig("advanced", MAX_PLAYERS).werewolves).toBe(
-        recommendedWolves(MAX_PLAYERS),
-      );
-    });
-  });
-});
-
-describe("preset invariant: every offered preset is dealable at every offered count", () => {
-  it("never throws for any preset at any count where it is available", () => {
+  it("offers every preset from the minimum player count up", () => {
     for (const meta of PRESETS) {
       for (let count = MIN_PLAYERS; count <= MAX_PLAYERS; count += 1) {
-        if (!isPresetAvailable(meta.id, count)) {
-          continue;
-        }
-        const config = presetConfig(meta.id, count);
-        expect(
-          () => dealRoles(seats(count), config, identityShuffle),
-          `${meta.id} @ ${count}`,
-        ).not.toThrow();
+        expect(isPresetAvailable(meta.id, count)).toBe(true);
       }
     }
   });
+});
+
+describe("presetConfig — Personalizado", () => {
+  it("hands back a blank slate: recommended Lykoi and no specials", () => {
+    for (let count = MIN_PLAYERS; count <= MAX_PLAYERS; count += 1) {
+      const config = presetConfig("custom", count);
+      expect(config.werewolves).toBe(recommendedWolves(count));
+      expect(config.seer).toBeFalsy();
+      expect(config.guardian).toBeFalsy();
+      expect(config.hunter).toBeFalsy();
+      expect(config.mayor).toBeFalsy();
+      expect(config.cupid).toBeFalsy();
+      expect(config.witch).toBeFalsy();
+      expect(config.littleRed).toBeFalsy();
+    }
+  });
+});
+
+/**
+ * The safety net that locks the whole curated table: for every skill level and
+ * every player count 4..24 the hand must be dealable (a valid config for the
+ * finite deck) AND sit inside its balance band.
+ */
+describe("preset table invariant: every level is dealable and in-band at every count", () => {
+  for (const level of LEVELS) {
+    for (let count = MIN_PLAYERS; count <= MAX_PLAYERS; count += 1) {
+      const id: PresetId = level;
+
+      it(`${level} @ ${count} deals a valid, in-band hand`, () => {
+        const config = presetConfig(id, count);
+
+        // Dealable: at most 6 wolves, at most 12 villagers, a strict wolf
+        // minority, and specials that fit the seats — dealRoles enforces all.
+        expect(() =>
+          dealRoles(seats(count), config, identityShuffle),
+        ).not.toThrow();
+
+        // In-band: the hand's signed balance lands in its level's window.
+        const [lo, hi] = bandFor(level, count);
+        const balance = configBalance(config, count);
+        expect(balance).toBeGreaterThanOrEqual(lo);
+        expect(balance).toBeLessThanOrEqual(hi);
+      });
+    }
+  }
 });

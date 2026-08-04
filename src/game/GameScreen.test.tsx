@@ -41,15 +41,47 @@ async function renameSeats(
   }
 }
 
+// The RolePicker toggle labels for each special, matched exactly so the helpers
+// build a precise hand from the blank Personalizado base.
+const VIDENTE = /^vidente$/i;
+const CURANDERO = /^curandero de la camada$/i;
+const CAZADOR = /^cazador de sombras$/i;
+const ALCALDE = /^alcalde del tejado$/i;
+const CUPIDO = /^cupido$/i;
+const GATA = /^la gata del bosque$/i;
+const CAPERUZA = /^caperuza$/i;
+
 /**
- * Drives the wizard to a dealt six-player Clásico game: count 6 -> Clásico
- * preset (1 Lykoi, Vidente, Guardián) -> rename seats -> deal. With the identity
- * shuffle the roles fall in seat order: Ana (p1) wolf, Beto (p2) seer, Caro (p3)
- * guardian, Dario/Eva/Fabi villagers.
+ * Builds an EXACT hand from the blank Personalizado base, so the behavioral tests
+ * stay independent of any curated preset's contents. Personalizado starts at
+ * `recommendedWolves` (1 at the counts these helpers use, 5 and 6) with every
+ * special OFF; this bumps the Lykoi stepper up to `wolves` and toggles ON exactly
+ * the named specials. Role→seat placement is fixed by dealRoles' push order
+ * (wolves, seer, guardian, hunter, mayor, cupid, witch, littleRed, then
+ * villagers), so the dealt game is identical regardless of toggle-click order.
+ */
+async function buildCustomHand(
+  user: ReturnType<typeof userEvent.setup>,
+  { wolves, specials }: { wolves: number; specials: readonly RegExp[] },
+) {
+  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
+  for (let i = 1; i < wolves; i += 1) {
+    await user.click(screen.getByRole("button", { name: /más lykoi/i }));
+  }
+  for (const special of specials) {
+    await user.click(screen.getByRole("button", { name: special }));
+  }
+}
+
+/**
+ * Drives the wizard to a dealt six-player {1 Lykoi, Vidente, Curandero} game,
+ * built via Personalizado: count 6 -> Personalizado + Vidente + Curandero ->
+ * rename seats -> deal. With the identity shuffle the roles fall in seat order:
+ * Ana (p1) wolf, Beto (p2) seer, Caro (p3) guardian, Dario/Eva/Fabi villagers.
  */
 async function fillLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^clásico$/i }));
+  await buildCustomHand(user, { wolves: 1, specials: [VIDENTE, CURANDERO] });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
@@ -68,27 +100,24 @@ async function walkReveal(user: ReturnType<typeof userEvent.setup>) {
 /**
  * Fills a 5-seat lobby with a two-wolf, no-special config and deals. With the
  * identity shuffle the roles fall in seat order, so p1/p2 (Ana, Beto) are the
- * werewolves and p3/p4/p5 (Caro, Dario, Eva) are townsfolk. Uses the Básico
- * preset (no Vidente / Guardián) at count 5, then bumps to two Lykoi.
+ * werewolves and p3/p4/p5 (Caro, Dario, Eva) are townsfolk. Built via
+ * Personalizado (no specials) at count 5, bumped to two Lykoi.
  */
 async function fillTwoWolfLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 5);
-  await user.click(screen.getByRole("button", { name: /^básico$/i }));
+  await buildCustomHand(user, { wolves: 2, specials: [] });
 
   const packNames = ["Ana", "Beto", "Caro", "Dario", "Eva"] as const;
   await renameSeats(user, packNames);
-
-  // Básico starts at one Lykoi; bump to two.
-  await user.click(screen.getByRole("button", { name: /más lykoi/i }));
 
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
 /**
- * Fills a six-seat Cazador lobby via Personalizado (Clásico + the Cazador de
- * Sombras toggle) and deals. With the identity shuffle the roles
+ * Fills a six-seat Cazador lobby via Personalizado (Vidente + Curandero +
+ * Cazador de Sombras) and deals. With the identity shuffle the roles
  * fall in seat order: Ana (p1) wolf, Beto (p2) seer, Caro (p3) guardian, Dario
  * (p4) the Cazador, Eva/Fabi villagers.
  */
@@ -96,16 +125,17 @@ async function fillHunterLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add the Cazador de Sombras.
-  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
+  await buildCustomHand(user, {
+    wolves: 1,
+    specials: [VIDENTE, CURANDERO, CAZADOR],
+  });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
 /**
- * Fills a six-seat Alcalde lobby via Personalizado (Clásico + the Alcalde del
- * Callejón toggle) and deals. With the identity shuffle the roles fall in seat
+ * Fills a six-seat Alcalde lobby via Personalizado (Vidente + Curandero +
+ * Alcalde del Tejado) and deals. With the identity shuffle the roles fall in seat
  * order: Ana (p1) wolf, Beto (p2) seer, Caro (p3) guardian, Dario (p4) the
  * Alcalde, Eva/Fabi villagers.
  */
@@ -113,16 +143,17 @@ async function fillMayorLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add the Alcalde del Tejado.
-  await user.click(screen.getByRole("button", { name: /^alcalde del tejado$/i }));
+  await buildCustomHand(user, {
+    wolves: 1,
+    specials: [VIDENTE, CURANDERO, ALCALDE],
+  });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
 /**
- * Fills a six-seat Cazador + Caperuza lobby via Personalizado (Clásico + the
- * Cazador de Sombras and Caperuza toggles) and deals. With the
+ * Fills a six-seat Cazador + Caperuza lobby via Personalizado (Vidente +
+ * Curandero + Cazador de Sombras + Caperuza toggles) and deals. With the
  * identity shuffle the roles fall in seat order (push order:
  * wolf, seer, guardian, hunter, littleRed, then villagers): Ana (p1) wolf, Beto
  * (p2) seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva (p5) the Caperuza,
@@ -132,9 +163,10 @@ async function fillHunterLittleRedLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
-  await user.click(screen.getByRole("button", { name: /^caperuza$/i }));
+  await buildCustomHand(user, {
+    wolves: 1,
+    specials: [VIDENTE, CURANDERO, CAZADOR, CAPERUZA],
+  });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
@@ -145,25 +177,24 @@ async function openGate(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
- * Fills a six-seat Bruja lobby via Personalizado (Clásico + the La Bruja del
- * Callejón toggle) and deals. With the identity shuffle the roles fall in seat
+ * Fills a six-seat Bruja lobby via Personalizado (Vidente + Curandero + La Gata
+ * del Bosque toggle) and deals. With the identity shuffle the roles fall in seat
  * order (push order: wolf, seer, guardian, witch, then villagers): Ana (p1) wolf,
  * Beto (p2) seer, Caro (p3) guardian, Dario (p4) the Gata del Bosque, Eva/Fabi villagers.
  */
 async function fillWitchLobbyAndDeal(user: ReturnType<typeof userEvent.setup>) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add La Gata del Bosque.
-  await user.click(
-    screen.getByRole("button", { name: /^la gata del bosque$/i }),
-  );
+  await buildCustomHand(user, {
+    wolves: 1,
+    specials: [VIDENTE, CURANDERO, GATA],
+  });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
 /**
- * Fills a six-seat Cazador + Cupido lobby via Personalizado (Clásico + the
- * Cazador de Sombras and Cupido toggles) and deals. With the
+ * Fills a six-seat Cazador + Cupido lobby via Personalizado (Vidente +
+ * Curandero + Cazador de Sombras + Cupido toggles) and deals. With the
  * identity shuffle the roles fall in seat order (push order:
  * wolf, seer, guardian, hunter, cupid, then villagers): Ana (p1) wolf, Beto (p2)
  * seer, Caro (p3) guardian, Dario (p4) the Cazador, Eva (p5) the Cupido, Fabi
@@ -173,16 +204,17 @@ async function fillHunterCupidLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  await user.click(screen.getByRole("button", { name: /^cazador de sombras$/i }));
-  await user.click(screen.getByRole("button", { name: /^cupido$/i }));
+  await buildCustomHand(user, {
+    wolves: 1,
+    specials: [VIDENTE, CURANDERO, CAZADOR, CUPIDO],
+  });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
 
 /**
- * Fills a six-seat Cupido lobby via Personalizado (Clásico + the Cupido del
- * Callejón toggle) and deals. With the identity shuffle the roles fall in seat
+ * Fills a six-seat Cupido lobby via Personalizado (Vidente + Curandero + Cupido
+ * toggles) and deals. With the identity shuffle the roles fall in seat
  * order: Ana (p1) wolf, Beto (p2) seer, Caro (p3) guardian, Dario (p4) the
  * Cupido, Eva/Fabi villagers.
  */
@@ -190,9 +222,10 @@ async function fillCupidLobbyAndDeal(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await setCount(user, 6);
-  await user.click(screen.getByRole("button", { name: /^personalizado$/i }));
-  // Personalizado starts from the Clásico hand; add the Cupido.
-  await user.click(screen.getByRole("button", { name: /^cupido$/i }));
+  await buildCustomHand(user, {
+    wolves: 1,
+    specials: [VIDENTE, CURANDERO, CUPIDO],
+  });
   await renameSeats(user, NAMES);
   await user.click(screen.getByRole("button", { name: /repartir los roles/i }));
 }
@@ -223,7 +256,7 @@ async function driveDayVote(
 }
 
 /**
- * Runs the first night at 6 (Clásico) with the lone wolf killing nobody: the
+ * Runs the first night at 6 ({1 wolf, seer, guardian}) with the lone wolf killing nobody: the
  * wolf abstains, the seer/guardian/villagers pass, so the whole table survives
  * into the first full day. Leaves the screen on the day's discussion board.
  */
@@ -358,7 +391,7 @@ describe("GameScreen", () => {
     expect(screen.getByLabelText(/dario \(caído\)/i)).toBeInTheDocument();
   });
 
-  it("a Básico game shows no Vidente/Guardián screens — villagers just pass", async () => {
+  it("a wolves-only game shows no Vidente/Guardián screens — villagers just pass", async () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
@@ -819,12 +852,13 @@ describe("GameScreen", () => {
     const user = userEvent.setup();
     render(<GameScreen shuffle={identityShuffle} />);
 
-    // Drive the wizard to the table step at 6 players with Clásico.
+    // Drive the wizard to the table step at 6 players with a {1 wolf, seer,
+    // guardian} hand, built from the blank Personalizado base.
     await setCount(user, 6);
-    await user.click(screen.getByRole("button", { name: /^clásico$/i }));
+    await buildCustomHand(user, { wolves: 1, specials: [VIDENTE, CURANDERO] });
 
     const balance = screen.getByLabelText(/equilibrio de la partida/i);
-    // Clásico-6 (1 wolf, seer, guardian) scores +7 — very town-favoured.
+    // {1 wolf, seer, guardian} at 6 scores +7 — very town-favoured.
     expect(balance).toHaveTextContent("+7");
     expect(balance).toHaveTextContent(/muy a favor del pueblo/i);
 

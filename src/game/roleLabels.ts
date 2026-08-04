@@ -1,8 +1,11 @@
 import type { Role } from "../domain/game/roles";
 
-/** The largest werewolf count that keeps the pack below the townsfolk. */
+/**
+ * The largest werewolf count that keeps the pack below the townsfolk, capped at
+ * the deck's six Lykoi cards.
+ */
 export function maxWolves(playerCount: number): number {
-  return Math.max(1, Math.floor((playerCount - 1) / 2));
+  return Math.min(6, Math.max(1, Math.floor((playerCount - 1) / 2)));
 }
 
 /** Display data for a role: its themed name, faction, tone and power blurb. */

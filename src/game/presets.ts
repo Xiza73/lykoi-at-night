@@ -10,8 +10,14 @@ export function recommendedWolves(count: number): number {
   return Math.min(Math.max(1, Math.floor(count / 4)), maxWolves(count));
 }
 
-/** The presets offered by the wizard. All four are dealable. */
-export type PresetId = "basic" | "classic" | "advanced" | "custom";
+/**
+ * The presets offered by the wizard: three curated skill levels plus a blank
+ * custom hand the player builds up role by role.
+ */
+export type PresetId = "beginner" | "intermediate" | "advanced" | "custom";
+
+/** The three curated skill levels — every one has an entry for every count 4..24. */
+type SkillLevel = Exclude<PresetId, "custom">;
 
 /** A preset's identity plus the smallest player count it can be dealt at. */
 export interface PresetMeta {
@@ -21,13 +27,13 @@ export interface PresetMeta {
 }
 
 /**
- * The presets offered by the wizard, each with its minimum player count. Below
- * that count the preset is shown disabled in the picker.
+ * The presets offered by the wizard, each with its minimum player count. Every
+ * preset covers the full 4..24 range, so none is ever gated in the picker.
  */
 export const PRESETS: readonly PresetMeta[] = [
-  { id: "basic", name: "Básico", minPlayers: MIN_PLAYERS }, // 4
-  { id: "classic", name: "Clásico", minPlayers: MIN_PLAYERS }, // 4
-  { id: "advanced", name: "Avanzado", minPlayers: 5 },
+  { id: "beginner", name: "Principiante", minPlayers: MIN_PLAYERS },
+  { id: "intermediate", name: "Intermedio", minPlayers: MIN_PLAYERS },
+  { id: "advanced", name: "Avanzado", minPlayers: MIN_PLAYERS },
   { id: "custom", name: "Personalizado", minPlayers: MIN_PLAYERS },
 ];
 
@@ -38,44 +44,99 @@ export function isPresetAvailable(preset: PresetId, count: number): boolean {
 }
 
 /**
- * The Avanzado role ladder: each town special joins the hand once the player
- * count reaches its `min`. The werewolf count scales with `recommendedWolves`.
+ * The curated preset tables: one hand per player count (4..24) at each skill
+ * level. Each entry was derived to land in the balance band measured by
+ * `configBalance` (see `../domain/game/balance`):
+ *   - Principiante: +1..+3 (comfortably town-favoured)
+ *   - Intermedio:   −1..+1 (roughly even)
+ *   - Avanzado:     −1..−3 (wolf-favoured)
+ * with a small documented margin at the deck's extremes (counts >= 21, where the
+ * six-Lykoi / twelve-villager caps bite, Avanzado may reach −4/−5). Every hand
+ * also respects the finite deck: at most 6 Lykoi, at most 12 villagers, at most
+ * one of each special. `presets.test.ts` locks all 63 cells to their band.
  */
-const AVANZADO_LADDER: readonly {
-  role: keyof RoleConfig;
-  min: number;
-}[] = [
-  { role: "seer", min: 5 },
-  { role: "guardian", min: 5 },
-  { role: "hunter", min: 5 },
-];
+const PRESET_TABLES: Record<SkillLevel, Record<number, RoleConfig>> = {
+  beginner: {
+    4: { werewolves: 1, seer: true },
+    5: { werewolves: 2, seer: true, mayor: true, witch: true },
+    6: { werewolves: 2, seer: true, guardian: true, hunter: true, mayor: true },
+    7: { werewolves: 2, seer: true, guardian: true, mayor: true },
+    8: { werewolves: 3, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    9: { werewolves: 3, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    10: { werewolves: 3, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    11: { werewolves: 3, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    12: { werewolves: 3, seer: true, guardian: true, hunter: true, mayor: true },
+    13: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    14: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    15: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    16: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    17: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    18: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    19: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    20: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    21: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    22: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    23: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, cupid: true, witch: true, littleRed: true },
+    24: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, cupid: true, witch: true, littleRed: true },
+  },
+  intermediate: {
+    4: { werewolves: 1, seer: true, cupid: true },
+    5: { werewolves: 2, seer: true, guardian: true, mayor: true },
+    6: { werewolves: 2, seer: true, guardian: true },
+    7: { werewolves: 2, seer: true, mayor: true },
+    8: { werewolves: 2, seer: true },
+    9: { werewolves: 2, seer: true },
+    10: { werewolves: 3, seer: true, guardian: true, hunter: true, mayor: true },
+    11: { werewolves: 3, seer: true, guardian: true, hunter: true },
+    12: { werewolves: 3, seer: true, guardian: true, mayor: true },
+    13: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    14: { werewolves: 4, seer: true, guardian: true, hunter: true, witch: true },
+    15: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    16: { werewolves: 4, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    17: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    18: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    19: { werewolves: 5, seer: true, guardian: true, hunter: true, witch: true, littleRed: true },
+    20: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    21: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    22: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, littleRed: true },
+    23: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, cupid: true, witch: true },
+    24: { werewolves: 6, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+  },
+  advanced: {
+    4: { werewolves: 1 },
+    5: { werewolves: 2, seer: true },
+    6: { werewolves: 2, seer: true },
+    7: { werewolves: 2, seer: true },
+    8: { werewolves: 3, seer: true, witch: true },
+    9: { werewolves: 3, seer: true, witch: true },
+    10: { werewolves: 3, seer: true, witch: true },
+    11: { werewolves: 3, seer: true, guardian: true },
+    12: { werewolves: 4, seer: true, guardian: true, hunter: true, witch: true },
+    13: { werewolves: 4, seer: true, guardian: true, witch: true },
+    14: { werewolves: 4, seer: true, guardian: true, witch: true },
+    15: { werewolves: 4, seer: true, mayor: true, witch: true },
+    16: { werewolves: 5, seer: true, guardian: true, hunter: true, witch: true, littleRed: true },
+    17: { werewolves: 5, seer: true, guardian: true, hunter: true, witch: true, littleRed: true },
+    18: { werewolves: 5, seer: true, guardian: true, hunter: true, mayor: true, witch: true },
+    19: { werewolves: 5, seer: true, guardian: true, hunter: true, witch: true },
+    20: { werewolves: 5, seer: true, guardian: true, mayor: true, witch: true },
+    21: { werewolves: 6, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    22: { werewolves: 6, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    23: { werewolves: 6, seer: true, guardian: true, hunter: true, mayor: true, witch: true, littleRed: true },
+    24: { werewolves: 6, seer: true, guardian: true, hunter: true, mayor: true, cupid: true, witch: true, littleRed: true },
+  },
+};
 
-/** Builds the Avanzado hand for `count`, scaling roles in via the ladder. */
-function advancedConfig(count: number): RoleConfig {
-  const included = AVANZADO_LADDER.filter((r) => count >= r.min);
-  const werewolves = Math.max(1, recommendedWolves(count));
-  const has = (role: keyof RoleConfig) => included.some((r) => r.role === role);
-  return {
-    werewolves,
-    seer: has("seer"),
-    guardian: has("guardian"),
-    hunter: has("hunter"),
-  };
-}
-
-/** The role config a preset resolves to for the current player count. */
+/**
+ * The role config a preset resolves to for the current player count. The three
+ * skill levels read straight from the curated table; "custom" hands back a blank
+ * slate — the recommended Lykoi and no specials — for the player to build up.
+ */
 export function presetConfig(preset: PresetId, count: number): RoleConfig {
-  const werewolves = recommendedWolves(count);
-  switch (preset) {
-    case "basic":
-      return { werewolves, seer: false, guardian: false };
-    case "advanced":
-      return advancedConfig(count);
-    case "classic":
-    case "custom":
-      // Custom starts from the Clásico hand as its baseline.
-      return { werewolves, seer: true, guardian: true };
+  if (preset === "custom") {
+    return { werewolves: recommendedWolves(count) };
   }
+  return PRESET_TABLES[preset][count];
 }
 
 /**

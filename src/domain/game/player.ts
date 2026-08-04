@@ -17,15 +17,21 @@ export interface Player {
   readonly alive: boolean;
 }
 
-/** The game supports 4 to 12 players. */
+/** The game supports 4 to 24 players (the finite physical deck's range). */
 export const MIN_PLAYERS = 4;
-export const MAX_PLAYERS = 12;
+export const MAX_PLAYERS = 24;
+
+/** The physical deck holds at most six Lykoi cards. */
+export const MAX_WOLVES = 6;
+
+/** The physical deck holds at most twelve Gato Doméstico (villager) cards. */
+export const MAX_VILLAGERS = 12;
 
 /** Which special roles are in play; the remaining seats become villagers. */
 export interface RoleConfig {
   readonly werewolves: number;
-  readonly seer: boolean;
-  readonly guardian: boolean;
+  readonly seer?: boolean;
+  readonly guardian?: boolean;
   readonly hunter?: boolean;
   readonly mayor?: boolean;
   readonly cupid?: boolean;
@@ -85,10 +91,21 @@ export function dealRoles(
   if (config.werewolves < 1) {
     throw new RangeError("A game needs at least one werewolf");
   }
+  if (config.werewolves > MAX_WOLVES) {
+    throw new RangeError(
+      `The deck holds at most ${MAX_WOLVES} Lykoi, got ${config.werewolves}`,
+    );
+  }
   const wolfCount = config.werewolves;
   const specials = countSpecials(config);
   if (specials > seats.length) {
     throw new RangeError("More special roles than players");
+  }
+  const villagers = seats.length - specials;
+  if (villagers > MAX_VILLAGERS) {
+    throw new RangeError(
+      `The deck holds at most ${MAX_VILLAGERS} villagers, got ${villagers}`,
+    );
   }
   const town = seats.length - wolfCount;
   if (wolfCount >= town) {

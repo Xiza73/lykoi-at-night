@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   countSpecials,
   MAX_PLAYERS,
+  MAX_VILLAGERS,
   MIN_PLAYERS,
   type RoleConfig,
   type Seat,
@@ -49,9 +50,9 @@ export function LobbyView({ onDeal }: LobbyViewProps) {
   const [subStep, setSubStep] = useState<SubStep>("count");
   const [count, setCount] = useState(DEFAULT_COUNT);
   const [config, setConfig] = useState<RoleConfig>(() =>
-    presetConfig("classic", DEFAULT_COUNT),
+    presetConfig("beginner", DEFAULT_COUNT),
   );
-  const [preset, setPreset] = useState<PresetId>("classic");
+  const [preset, setPreset] = useState<PresetId>("beginner");
   const [names, setNames] = useState<string[]>(() => buildNames(DEFAULT_COUNT));
 
   const setCountTo = (next: number) => {
@@ -394,9 +395,13 @@ function TableStep({
   const wolfCount = config.werewolves;
   const upper = maxWolves(count);
   const specials = countSpecials(config);
+  const villagers = count - specials;
   const town = count - wolfCount;
   const configValid =
-    config.werewolves >= 1 && wolfCount < town && specials <= count;
+    config.werewolves >= 1 &&
+    wolfCount < town &&
+    specials <= count &&
+    villagers <= MAX_VILLAGERS;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px", height: "100%" }}>
